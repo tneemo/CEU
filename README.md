@@ -79,6 +79,7 @@ Na raiz:
 .venv\Scripts\python -m compileall -q server scripts
 .venv\Scripts\python scripts\verify_recovery.py --real-db
 .venv\Scripts\python scripts\test_calls.py
+.venv\Scripts\python scripts\test_git_tools.py
 ```
 
 No frontend:
@@ -132,6 +133,8 @@ server/                 backend Python, API HTTP, SSE e SQLite
   generation.py         loop de geração e eventos persistentes
   providers.py          Anthropic, OpenAI-compatible e Codex
   code_tools.py         ferramentas do modo Code
+  git_tools.py         Git local e ferramentas GitHub do harness
+  github.py             cliente REST e cofre seguro de credenciais
   agent_mode.py         agentes, tarefas e aprovações
   calls.py              autoria e projeção de participantes
   delegate.py           delegação para Code e Agent
@@ -143,6 +146,8 @@ scripts/                release, recuperação e testes de integração
 ```
 
 Gerações rodam em threads de fundo e registram eventos por mensagem, permitindo que um cliente SSE reconecte e reproduza o stream. O SQLite guarda conversas como árvores, além de provedores, anexos, agentes, tarefas e aprovações.
+
+O fluxo de Git/GitHub dos agentes, as ferramentas, credenciais e aprovações estão descritos em [docs/git-github.md](docs/git-github.md).
 
 ## Estado e limitações conhecidas
 

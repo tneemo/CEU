@@ -356,14 +356,16 @@ def _code_call(g, conv, call, rules):
     """Runs one code-session call, asking the user first when the permission mode requires it."""
     name, args = call["name"], call.get("input") or {}
     mode = conv.get("permission_mode") or "manual"
-    if mode == "plan" and name in code_tools.EDITS:
-        return {"output": "Modo plano: edições não são permitidas.", "is_error": True, "files": [], "meta": {}}
+    if mode == "plan" and (name in code_tools.EDITS or code_tools.git_tools.approval_class(name)):
+        return {"output": "Modo plano: alterações Git e publicações não são permitidas.", "is_error": True,
+                "files": [], "meta": {}}
     kind = code_tools.needs_approval(name, args, mode, rules)
     if kind:
         tool, pattern = code_tools.rule_for(name, args)
         preview = _edit_preview(conv["project_path"], name, args) if name in code_tools.EDITS else {}
         answer = g.ask({"call_id": call["id"], "name": name, "input": args, "kind": kind,
-                        "rule": {"tool": tool, "pattern": pattern}, "preview": preview})
+                        "rule": {"tool": tool, "pattern": pattern}, "preview": preview,
+                        "summary": code_tools.git_tools.summary(name, args) if name in code_tools.git_tools.TOOLS_BY_NAME else None})
         if answer is None:
             return {"output": "Interrompido pelo usuário antes da execução.", "is_error": True, "files": [],
                     "meta": {"cancelled": True}}

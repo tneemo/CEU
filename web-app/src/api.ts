@@ -232,6 +232,17 @@ export interface ToolResult {
     title?: string;
     note_id?: string;
     task_id?: string;
+    commit_sha?: string;
+    branch?: string | null;
+    tag?: string;
+    remote?: string;
+    remote_url?: string;
+    repo_url?: string;
+    release_url?: string;
+    repository?: Record<string, unknown>;
+    release?: Record<string, unknown>;
+    artifacts_published?: Record<string, unknown>[];
+    [key: string]: unknown;
   };
 }
 
@@ -241,7 +252,7 @@ export interface ApprovalRequest {
   call_id: string;
   name: string;
   input: Record<string, any>;
-  kind: "edit" | "command" | "agent" | "unknown";
+  kind: "edit" | "command" | "git_write" | "github_publish" | "agent" | "unknown";
   rule: { tool: string; pattern: string };
   /** external harnesses: what "always" means there (e.g. "for this Codex session"); null hides it */
   always_label?: string | null;
@@ -256,7 +267,7 @@ export interface ApprovalRequest {
 
 // ------------------------------------------------------------------ agents
 
-export type AgentAction = "web" | "computer" | "tasks" | "host_read" | "host_edit" | "host_command";
+export type AgentAction = "web" | "computer" | "tasks" | "host_read" | "host_edit" | "host_command" | "host_git_read" | "host_git_write" | "host_github_publish";
 export type AgentDecision = "allow" | "ask" | "block";
 export type Schedule = { every_minutes: number } | { daily_at: string } | null;
 
@@ -415,6 +426,13 @@ export interface Integration {
   /** what can be done now ("relogin" = log in again while connected) */
   actions: (IntegrationAction | "relogin")[];
   checked_at: number;
+}
+
+export interface GitHubStatus {
+  connected: boolean;
+  account: string | null;
+  available: boolean;
+  detail: string;
 }
 
 export interface Conversation {
@@ -585,6 +603,10 @@ export const api = {
     req<{ integrations: Integration[]; runtimes: RuntimeInfo[] }>("GET", `/api/integrations${refresh ? "?refresh=1" : ""}`),
   integrationAction: (id: string, action: IntegrationAction, body?: { method?: string; params?: Record<string, string> }) =>
     req<{ integration: Integration }>("POST", `/api/integrations/${id}/${action}`, body || {}),
+  github: () => req<{ github: GitHubStatus; git_installed: boolean }>("GET", "/api/github"),
+  githubConnect: (token: string) => req<{ github: GitHubStatus }>("POST", "/api/github/connect", { token }),
+  githubDisconnect: () => req<{ github: GitHubStatus }>("POST", "/api/github/disconnect", {}),
+  githubValidate: () => req<{ github: GitHubStatus }>("POST", "/api/github/validate", {}),
   codexAccount: () => req<{ connected: boolean; email?: string; plan?: string; error?: string }>("GET", "/api/providers/codex/account"),
   codexLoginStart: () => req<{ loginId: string }>("POST", "/api/providers/codex/login/start"),
   codexLoginWait: (loginId: string) =>

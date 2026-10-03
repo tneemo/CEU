@@ -13,7 +13,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import (agent_mode, agent_tools, calls, code_runtimes, code_tools, codex_bridge, db, delegate, generation,
-               integrations, providers, rooms, suggestions)
+               github, integrations, providers, rooms, suggestions)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, "web")
@@ -148,6 +148,34 @@ def _integration(iid):
 def api_integrations(h, m):
     refresh = (h.query().get("refresh") or ["0"])[0] == "1"
     return {"integrations": integrations.describe(refresh=refresh), "runtimes": code_runtimes.describe()}
+
+
+# ---------------------------------------------------------------- GitHub credentials
+
+@route("GET", "/api/github")
+def api_github(h, m):
+    return {"github": github.describe(), "git_installed": code_tools.git_tools.git_available()}
+
+
+@route("POST", r"/api/github/(connect|disconnect|validate)")
+def api_github_action(h, m):
+    action = m[1]
+    try:
+        if action == "connect":
+            body = h.json()
+            token = body.pop("token", "")
+            body.clear()
+            try:
+                snap = github.connect(token)
+            finally:
+                token = ""
+        elif action == "disconnect":
+            snap = github.disconnect()
+        else:
+            snap = github.validate()
+    except github.GitHubError as e:
+        raise HttpError(e.status, str(e))
+    return {"github": snap}
 
 
 @route("POST", r"/api/integrations/(\w+)/(install|login|cancel|logout|validate|refresh)")

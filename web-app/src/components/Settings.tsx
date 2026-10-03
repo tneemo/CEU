@@ -9,6 +9,7 @@ import { allModels, S, setS, useApp } from "../state/store";
 import { closeDialog, confirmDialog, openMenu, openSettings, toast, useUi } from "../state/ui";
 import { DialogShell } from "./Overlay";
 import { RuntimesHub } from "./Runtimes";
+import { GitHubSettings } from "./GitHub";
 
 interface Section {
   id: string;
@@ -28,6 +29,7 @@ const SECTIONS: Section[] = [
   { id: "voice", label: "Voz", icon: "voice", group: "Pessoais", keywords: "voz leitura ler em voz alta velocidade fala" },
   { id: "providers", label: "Provedores", icon: "plug", group: "Modelos", keywords: "api chave anthropic openai chatgpt codex openrouter local ollama llama lm studio modelos" },
   { id: "runtimes", label: "Runtimes e agentes", icon: "cube", group: "Modelos", keywords: "code runtime sdk codex claude antigravity agy cli redir agente externo login conectar instalar autenticação conta" },
+  { id: "github", label: "GitHub", icon: "plug", group: "Modelos", keywords: "git github token autenticação conectar desconectar repositório publicação release push" },
   { id: "capabilities", label: "Recursos", icon: "tools", group: "Modelos", keywords: "ferramentas execução código python bash sandbox arquivos rede wsl" },
   { id: "usage", label: "Uso", icon: "gauge", group: "Sistema", keywords: "tokens estatísticas consumo mensagens por modelo" },
   { id: "shortcuts", label: "Teclado", icon: "keyboard", group: "Sistema", keywords: "atalhos teclado tecla" },
@@ -1351,6 +1353,7 @@ export function SettingsDialog({ id, section: rawSection, focus }: { id: number;
         {section === "voice" && <Voice />}
         {section === "providers" && <Providers openId={openId} setOpenId={setOpenId} />}
         {section === "runtimes" && <RuntimesHub focus={focus} />}
+        {section === "github" && <GitHubSettings />}
         {section === "capabilities" && <Capabilities />}
         {section === "usage" && <Usage />}
         {section === "shortcuts" && <Shortcuts />}

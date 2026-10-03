@@ -347,6 +347,7 @@ export function ApprovalCard({ req }: { req: ApprovalRequest }) {
   const reasonRef = useRef<HTMLInputElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const edit = req.kind === "edit";
+  const nativeGit = req.kind === "git_write" || req.kind === "github_publish";
   // agent rules are per action class ("web", "host_command"…), not per command prefix
   const agentReq = !!req.action;
   // an external harness says what "always" means there (or null: it has no such option)
@@ -355,6 +356,10 @@ export function ApprovalCard({ req }: { req: ApprovalRequest }) {
     req.always_label
   ) : agentReq ? (
     <>Sempre permitir: {req.action_label}</>
+  ) : req.kind === "git_write" ? (
+    "Sempre permitir alterações Git locais neste projeto"
+  ) : req.kind === "github_publish" ? (
+    "Sempre permitir publicações no GitHub neste projeto"
   ) : edit ? (
     "Sempre permitir edições neste projeto"
   ) : canAlways ? (
@@ -398,6 +403,8 @@ export function ApprovalCard({ req }: { req: ApprovalRequest }) {
       <div className="ap-q">
         {req.kind === "agent" || req.kind === "unknown" ? (
           <>{req.summary || req.name}</>
+        ) : nativeGit ? (
+          <>{req.summary || req.name}</>
         ) : edit ? (
           <>
             <span>{req.name === "write_file" && !req.preview?.removed ? "Criar" : "Editar"}</span>
@@ -411,6 +418,8 @@ export function ApprovalCard({ req }: { req: ApprovalRequest }) {
       {req.kind === "agent" ? (
         <AgentRequestBody req={req} />
       ) : req.kind === "unknown" ? (
+        <pre className="out-box ap-code">{JSON.stringify(req.input, null, 2)}</pre>
+      ) : nativeGit ? (
         <pre className="out-box ap-code">{JSON.stringify(req.input, null, 2)}</pre>
       ) : edit ? (
         req.preview?.diff != null ? <DiffView diff={req.preview.diff} max={160} /> : null

@@ -848,6 +848,19 @@ kbd {
 .rt-pill.is-authenticating { color: var(--accent); border-color: var(--accent-3); }
 .rt-pill.is-setup_required { color: #f3c96b; border-color: rgba(243, 201, 107, .45); }
 .rt-note { margin: 10px 0 4px; font-size: 12.5px; color: var(--ink-3); line-height: 1.5; }
+.gh-card { margin-top: 10px; }
+.gh-card .gh-head { cursor: default; }
+.gh-card .gh-head:hover { background: transparent; }
+.gh-card .gh-head > svg { width: 15px; height: 15px; color: var(--ink-3); flex: none; }
+.gh-card .gh-body { display: block; }
+.gh-host-state { display: flex; align-items: center; gap: 8px; margin: 10px 0; color: var(--ink-2); font-size: 12px; }
+.gh-host-state .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-4); flex: none; }
+.gh-host-state .dot.ok { background: var(--ok); }
+.gh-host-state .dot.warn { background: #f3c96b; }
+.gh-auth-form { margin-top: 14px; }
+.gh-form-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+.gh-help { margin: 12px 0 0; color: var(--ink-3); font-size: 12px; line-height: 1.55; }
+.gh-help code { color: var(--ink-2); }
 .rt-reqs { list-style: none; margin: 10px 0 0; padding: 0; font-size: 12.5px; line-height: 1.5; }
 .rt-reqs li { display: flex; gap: 8px; align-items: flex-start; padding: 2px 0; color: var(--ink-2); word-break: break-word; }
 .rt-reqs li svg { width: 14px; height: 14px; flex: none; margin-top: 3px; }

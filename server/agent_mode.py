@@ -25,7 +25,7 @@ import os
 import threading
 import time
 
-from . import agent_tools, code_tools, db, generation, web_tools
+from . import agent_tools, code_tools, db, generation, git_tools, web_tools
 
 ACTIONS = {
     # class: (label for rules and approval cards, default rule)
@@ -35,6 +35,9 @@ ACTIONS = {
     "host_read": ("ler a pasta concedida", "allow"),
     "host_edit": ("editar arquivos da pasta concedida", "ask"),
     "host_command": ("rodar comandos no PowerShell", "ask"),
+    "host_git_read": ("consultar Git e repositórios GitHub", "allow"),
+    "host_git_write": ("alterar o repositório Git local", "ask"),
+    "host_github_publish": ("criar repositórios e publicar no GitHub", "ask"),
 }
 DECISIONS = ("allow", "ask", "block")
 
@@ -46,6 +49,14 @@ TOOL_ACTION = {
     "host_edit_file": "host_edit", "host_write_file": "host_edit",
     "host_run_command": "host_command",
 }
+for _tool in git_tools.TOOLS:
+    _name = _tool["name"]
+    if _name in git_tools.READ_ONLY:
+        TOOL_ACTION["host_" + _name] = "host_git_read"
+    elif _name in git_tools.GITHUB_PUBLISH:
+        TOOL_ACTION["host_" + _name] = "host_github_publish"
+    else:
+        TOOL_ACTION["host_" + _name] = "host_git_write"
 
 # Proactive research only reads and takes notes: enforced here, whatever the model asks for.
 RESEARCH_TOOLS = {"web_search", "fetch_url", "read_file", "list_files", "save_note", "list_tasks"}
@@ -344,6 +355,10 @@ def system_prompt(settings, conv, agent, task):
     rules = rules_of(agent)
     folder = host_folder(agent)
     main = conv.get("kind") == "agent"
+    git_block = ("\n- Git/GitHub: ferramentas nativas na pasta concedida para status, diff, commit, branches, tags, "
+                 "remotes, repositórios e releases. O token fica no cofre do sistema e nunca deve ser pedido, "
+                 "lido de arquivos, salvo em notas ou incluído em mensagens. Push, criação/publicação e alterações "
+                 "Git locais seguem as permissões abaixo.") if folder else ""
     parts = [
         f"Você é {agent['name']}, um agente persistente que trabalha para o usuário dentro do CEU. Você não é um "
         "chat que esquece: é uma entidade contínua, com memória própria (notas), um computador próprio e um "
@@ -361,7 +376,7 @@ def system_prompt(settings, conv, agent, task):
                           "list_tasks mostra o estado; update_task retoma, encerra ou atualiza uma tarefa."
                           if main else "você está numa tarefa; só a conversa principal cria tarefas.")
         + (f"\n- Pasta do computador do usuário: {folder} (ferramentas host_*: ler, buscar, editar, PowerShell)."
-           if folder else ""),
+           if folder else "") + git_block,
         "Permissões (definidas pelo usuário):\n" + "\n".join(
             f"- {label}: " + {"allow": "livre", "ask": "pede aprovação", "block": "bloqueado"}[rules[k]]
             for k, (label, _d) in ACTIONS.items() if k in ("web", "computer", "tasks") or folder)
@@ -433,6 +448,8 @@ def _result(output, is_error=False, files=None, **meta):
 
 def _summary(name, args):
     a = args or {}
+    if name.startswith("host_git_") or name.startswith("host_github_"):
+        return git_tools.summary(name[5:], a)
     if name == "web_search":
         return f"Pesquisar “{a.get('query', '')}”"
     if name == "fetch_url":

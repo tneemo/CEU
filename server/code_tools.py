@@ -15,14 +15,14 @@ import subprocess
 import threading
 import time
 
-from . import db
+from . import db, git_tools
 
 IGNORED_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", "target", "dist", "build", ".next",
                 ".mypy_cache", ".pytest_cache", ".idea", ".vs"}
 MAX_READ_LINES = 2000
 MAX_OUTPUT = 30_000       # characters of command output kept for the model and the UI
 MAX_MATCHES = 200
-READ_ONLY = {"read_file", "list_dir", "glob", "grep"}
+READ_ONLY = {"read_file", "list_dir", "glob", "grep"} | git_tools.READ_ONLY
 EDITS = {"edit_file", "write_file"}
 
 TOOLS = [
@@ -94,8 +94,8 @@ TOOLS = [
     },
     {
         "name": "run_command",
-        "description": "Executa um comando no PowerShell (Windows) com a pasta do projeto como diretório de trabalho e "
-                       "devolve a saída (stdout e stderr juntos) e o código de saída. Use para testes, builds, git, "
+                "description": "Executa um comando no PowerShell (Windows) com a pasta do projeto como diretório de trabalho e "
+                               "devolve a saída (stdout e stderr juntos) e o código de saída. Use para testes, builds, "
                        "instalar dependências etc. Não use para ler, buscar ou editar arquivos: há ferramentas próprias. "
                        "Comandos interativos não funcionam (não há entrada). `description` é uma frase curta, no "
                        "passado ou infinitivo, dizendo o objetivo (ex.: \"Rodar os testes do parser\").",
@@ -111,6 +111,11 @@ TOOLS = [
     },
 ]
 
+# Git/GitHub are harness tools and share this permission/approval path with the
+# other native Code tools. The same schemas are exposed, host-prefixed, to agents.
+TOOLS.extend(git_tools.TOOLS)
+_GIT_TOOL_NAMES = {tool["name"] for tool in git_tools.TOOLS}
+
 
 class Ctx:
     """What a tool call needs from the running generation."""
@@ -125,7 +130,8 @@ class Ctx:
 def tools_for(mode):
     """Plan mode explores only: no edit tools are offered at all."""
     if mode == "plan":
-        return [t for t in TOOLS if t["name"] not in EDITS]
+        return [t for t in TOOLS if t["name"] not in EDITS and
+                (t["name"] not in _GIT_TOOL_NAMES or t["name"] in git_tools.READ_ONLY)]
     return TOOLS
 
 
@@ -141,6 +147,9 @@ def command_prefix(command):
 
 def rule_for(name, args):
     """(tool, pattern) an 'always allow' answer records for this call."""
+    if name in _GIT_TOOL_NAMES:
+        kind = git_tools.approval_class(name)
+        return kind, kind or ""
     if name in EDITS:
         return "edit", ""
     return "run_command", command_prefix(args.get("command") or "")
@@ -152,6 +161,13 @@ def needs_approval(name, args, mode, rules):
         return None
     if mode == "auto":
         return None
+    if name in _GIT_TOOL_NAMES:
+        if name in git_tools.READ_ONLY:
+            return None
+        kind = git_tools.approval_class(name) or "unknown"
+        if any(r["tool"] == kind and r["pattern"] == kind for r in rules):
+            return None
+        return kind
     if name in EDITS:
         if mode == "accept_edits" or any(r["tool"] == "edit" for r in rules):
             return None
@@ -173,6 +189,8 @@ def needs_approval(name, args, mode, rules):
 def execute(name, args, ctx):
     """Returns {"output": str, "is_error": bool, "files": [], "meta": dict}."""
     try:
+        if name in _GIT_TOOL_NAMES:
+            return git_tools.execute(name, args, ctx)
         fn = {
             "read_file": _read_file, "list_dir": _list_dir, "glob": _glob, "grep": _grep,
             "edit_file": _edit_file, "write_file": _write_file, "run_command": _run_command,

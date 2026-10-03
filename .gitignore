@@ -3,6 +3,7 @@ data/
 __pycache__/
 node_modules/
 web-app/dist/
+release-artifacts/
 web-app/src-tauri/target/
 web-app/src-tauri/gen/schemas/
 *.log

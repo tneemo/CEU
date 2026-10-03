@@ -28,6 +28,7 @@ Verificações do backend:
 ```powershell
 .venv\Scripts\python -m compileall -q server scripts
 .venv\Scripts\python scripts\test_calls.py
+.venv\Scripts\python scripts\test_git_tools.py
 .venv\Scripts\python scripts\verify_recovery.py --real-db
 ```
 
@@ -37,9 +38,12 @@ Verificações do backend:
 - `generation.py` executa gerações em background e registra eventos por mensagem para reconexão.
 - `providers.py` integra Anthropic, APIs compatíveis com OpenAI e Codex.
 - `code_tools.py` executa o modo Code na pasta escolhida, com permissões, aprovações, undo e steering.
+- `git_tools.py` expõe Git local e publicação no GitHub como tools do harness; `github.py` mantém cliente REST e credenciais no cofre seguro do sistema.
 - `agent_mode.py` mantém agentes, notas, tarefas agendadas e aprovações estacionadas.
 - `calls.py`, `delegate.py` e `rooms.py` mantêm autoria, delegação e sequenciamento de participantes.
 - `web/` é o frontend estático servido pelo backend; `web-app/` é o frontend React e a casca Tauri.
+
+O fluxo, as aprovações, a conexão e as tools de Git/GitHub estão em `docs/git-github.md`.
 
 ## Cuidados locais
 

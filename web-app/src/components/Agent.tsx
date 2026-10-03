@@ -628,10 +628,14 @@ const ACTION_HINTS: Record<AgentAction, string> = {
   host_read: "ler e buscar na pasta concedida",
   host_edit: "alterar arquivos da pasta concedida",
   host_command: "comandos no Windows, sem sandbox",
+  host_git_read: "status, diff, log e consulta da conta/repositório",
+  host_git_write: "init, add, commit, branches, tags e remotes locais",
+  host_github_publish: "criar repositório, push, release e anexos",
 };
 
 const ACTION_DEFAULTS: Record<AgentAction, AgentDecision> = {
   web: "allow", computer: "allow", tasks: "ask", host_read: "allow", host_edit: "ask", host_command: "ask",
+  host_git_read: "allow", host_git_write: "ask", host_github_publish: "ask",
 };
 const ACTION_LABELS: Record<AgentAction, string> = {
   web: "Pesquisar e abrir páginas na web",
@@ -640,6 +644,9 @@ const ACTION_LABELS: Record<AgentAction, string> = {
   host_read: "Ler a pasta concedida",
   host_edit: "Editar arquivos da pasta concedida",
   host_command: "Rodar comandos no PowerShell",
+  host_git_read: "Consultar Git e GitHub",
+  host_git_write: "Alterar o Git local",
+  host_github_publish: "Publicar no GitHub",
 };
 
 export function AgentDialog({ id, agentId }: { id: number; agentId: string | null }) {
