@@ -9,7 +9,8 @@ import re
 import threading
 import time
 
-from . import agent_mode, agent_tools, calls, claude_sdk, code_runtimes, code_tools, codex_sdk, db, providers, redir
+from . import (agent_mode, agent_tools, calls, claude_sdk, code_runtimes, code_tools, codex_sdk, coordination, db,
+               providers, redir)
 
 MAX_TOOL_ROUNDS = 8
 MAX_CODE_ROUNDS = 200
@@ -94,6 +95,9 @@ class Generation:
         # Agent conversations: approvals park the turn instead of blocking this thread
         # (not on Codex, whose tool calls run inside its own turn).
         self.parkable = False
+        # (call_id, executor generation, its call_id): an executor's approval card shown on this turn's
+        # `delegate` call (coordination.py); answering it here answers the executor
+        self.forward = None
 
     def ask(self, request):
         """Blocks the generation thread until the user answers `request` (or stops the turn).
@@ -117,6 +121,9 @@ class Generation:
         return None if self.cancel.is_set() else answer
 
     def answer(self, call_id, decision, reason=""):
+        fwd = self.forward
+        if fwd and fwd[0] == call_id and not (self.pending and self.pending["call_id"] == call_id):
+            return fwd[1].answer(fwd[2], decision, reason)
         with self.cond:
             if not self.pending or self.pending["call_id"] != call_id:
                 return False
@@ -260,6 +267,9 @@ def code_system_prompt(settings, conv):
         "- Se o usuário negar uma ação, não insista nela: ajuste o plano ou pergunte.",
         "Permissões: " + MODE_TEXT.get(conv.get("permission_mode") or "manual", MODE_TEXT["manual"]),
     ]
+    executor = coordination.executor_note(conv)  # a session an agent delegated work to
+    if executor:
+        parts.append(executor)
     name, text = code_tools.project_instructions(root)
     if text.strip():
         parts.append(f"Instruções do projeto ({name}):\n{text.strip()}")
@@ -353,19 +363,32 @@ def _edit_preview(root, name, args):
 
 
 def _code_call(g, conv, call, rules):
-    """Runs one code-session call, asking the user first when the permission mode requires it."""
+    """Runs one code-session call, asking the user first when the permission mode requires it. A session
+    an agent delegated work to (coordination.py) acts under that agent's rules instead: allow, ask, block."""
     name, args = call["name"], call.get("input") or {}
     mode = conv.get("permission_mode") or "manual"
     if mode == "plan" and (name in code_tools.EDITS or code_tools.git_tools.approval_class(name)):
         return {"output": "Modo plano: alterações Git e publicações não são permitidas.", "is_error": True,
                 "files": [], "meta": {}}
-    kind = code_tools.needs_approval(name, args, mode, rules)
+    agent = coordination.delegating_agent(conv)
+    action = None
+    if agent:
+        action, rule = coordination.decision(agent, name)
+        if rule == "block":
+            return {"output": f"O usuário bloqueou esta ação para {agent['name']} (e para quem trabalha por ele).",
+                    "is_error": True, "files": [], "meta": {"denied": True, "reason": "bloqueado"}}
+        kind = None if rule == "allow" else (code_tools.needs_approval(name, args, "manual", []) or "unknown")
+    else:
+        kind = code_tools.needs_approval(name, args, mode, rules)
     if kind:
         tool, pattern = code_tools.rule_for(name, args)
         preview = _edit_preview(conv["project_path"], name, args) if name in code_tools.EDITS else {}
-        answer = g.ask({"call_id": call["id"], "name": name, "input": args, "kind": kind,
-                        "rule": {"tool": tool, "pattern": pattern}, "preview": preview,
-                        "summary": code_tools.git_tools.summary(name, args) if name in code_tools.git_tools.TOOLS_BY_NAME else None})
+        request = {"call_id": call["id"], "name": name, "input": args, "kind": kind,
+                   "rule": {"tool": tool, "pattern": pattern}, "preview": preview,
+                   "summary": code_tools.git_tools.summary(name, args) if name in code_tools.git_tools.TOOLS_BY_NAME else None}
+        if agent:  # "always" means the agent's rule for this action, as on the agent's own cards
+            request.update(action=action, action_label=agent_mode.ACTIONS[action][0], agent=agent["name"])
+        answer = g.ask(request)
         if answer is None:
             return {"output": "Interrompido pelo usuário antes da execução.", "is_error": True, "files": [],
                     "meta": {"cancelled": True}}
@@ -377,7 +400,10 @@ def _code_call(g, conv, call, rules):
                         "agora com o plano numerado.")
             return {"output": "O usuário negou esta ação." + (f" Motivo: {reason}." if reason else "") + hint,
                     "is_error": True, "files": [], "meta": {"denied": True, "reason": reason}}
-        if answer["decision"] == "always":
+        if answer["decision"] == "always" and agent:
+            db.update_agent(agent["id"], {"rules": dict(agent.get("rules") or {}, **{action: "allow"})})
+            bus.publish({"type": "agent", "agent_id": agent["id"]})
+        elif answer["decision"] == "always":
             db.add_rule(conv["project_path"], tool, pattern)
             rules.append({"tool": tool, "pattern": pattern})
     ctx = code_tools.Ctx(conv["project_path"], g.message_id, cancel=g.cancel,

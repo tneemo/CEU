@@ -146,6 +146,40 @@ CREATE TABLE IF NOT EXISTS agent_approvals (
   created_at REAL NOT NULL,
   answered_at REAL
 );
+CREATE TABLE IF NOT EXISTS agent_calls (  -- work an agent asked of an executor (coordination.py)
+  id TEXT PRIMARY KEY,
+  agent_id TEXT NOT NULL,
+  task_id TEXT,                  -- the objective it served (NULL = asked from the main thread)
+  origin_id TEXT NOT NULL,       -- the agent thread that placed the call
+  role TEXT NOT NULL,            -- investigate | implement | review
+  runtime TEXT NOT NULL,         -- code_runtimes id the executor ran on
+  model TEXT,                    -- model ref (NULL = the harness's default model)
+  label TEXT NOT NULL,           -- the executor as people and models read it
+  request TEXT NOT NULL,
+  conversation_id TEXT,          -- the Code session it ran in
+  message_id TEXT,
+  status TEXT NOT NULL DEFAULT 'running',  -- running | complete | error | stopped
+  verdict TEXT,                  -- review: approved | changes | NULL (no verdict given)
+  fingerprint TEXT,              -- review: the folder content it reviewed (coordination.fingerprint)
+  result TEXT,
+  created_at REAL NOT NULL,
+  finished_at REAL
+);
+CREATE TABLE IF NOT EXISTS issues (  -- the open questions of an agent's work (coordination.py)
+  id TEXT PRIMARY KEY,
+  agent_id TEXT NOT NULL,
+  task_id TEXT,                  -- the objective it belongs to (NULL = the agent's own)
+  kind TEXT NOT NULL,            -- problem | hypothesis | contradiction | question | lead | finding
+  title TEXT NOT NULL,
+  detail TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'open',  -- open | noted (a finding) | resolved | discarded
+  resolution TEXT,
+  raised_by TEXT NOT NULL,       -- who raised it: the agent, an executor's label, or 'user'
+  call_id TEXT,                  -- the executor call whose report raised it
+  closed_by TEXT,
+  created_at REAL NOT NULL,
+  updated_at REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS attachments (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -189,6 +223,7 @@ MIGRATIONS = [
     ("conversations", "origin", "TEXT"),    # JSON: the conversation + message a delegated call came from (delegate.py)
     ("conversations", "room", "TEXT"),      # JSON: a Room's participants, order and rounds (rooms.py)
     ("conversations", "room_run", "TEXT"),  # JSON: durable Room sequence progress (rooms.py)
+    ("agent_tasks", "baseline", "TEXT"),    # JSON: where the granted folder stood when the objective began (coordination.py)
 ]
 
 
@@ -217,6 +252,8 @@ def init():
         conn().execute("UPDATE agent_tasks SET status='idle', next_run_at=?, outcome=? WHERE id=?",
                        (time.time() + 60, json.dumps({"state": "continue", "why": "restart"}), r["id"]))
         add_log(r["agent_id"], r["id"], r["title"], "resumed", "Interrompida quando o CEU fechou; retoma em instantes.")
+    # An executor call dies with the turn that waited for it; its Code session keeps what it did.
+    conn().execute("UPDATE agent_calls SET status='stopped', finished_at=? WHERE status='running'", (time.time(),))
     purge_deleted(0)
 
 
@@ -870,7 +907,7 @@ def delete_agent(aid):
     c.execute("UPDATE agents SET deleted_at=? WHERE id=?", (t, aid))
     c.execute("UPDATE conversations SET deleted_at=? WHERE agent_id=?", (t, aid))
     c.execute("UPDATE agent_approvals SET status='cancelled' WHERE agent_id=? AND status='pending'", (aid,))
-    for table in ("agent_notes", "agent_tasks", "agent_log"):
+    for table in ("agent_notes", "agent_tasks", "agent_log", "agent_calls", "issues"):
         c.execute(f"DELETE FROM {table} WHERE agent_id=?", (aid,))
 
 
@@ -905,6 +942,7 @@ def _task_row(row):
     d = dict(row)
     d["schedule"] = json.loads(d["schedule"]) if d["schedule"] else None
     d["outcome"] = json.loads(d["outcome"]) if d.get("outcome") else None
+    d["baseline"] = json.loads(d["baseline"]) if d.get("baseline") else None
     return d
 
 
@@ -937,10 +975,10 @@ def create_task(agent_id, conversation_id, kind, title, instructions, schedule, 
 def update_task(tid, patch):
     fields, values = [], []
     for k in ("title", "instructions", "schedule", "status", "next_run_at", "last_run_at", "last_result", "runs",
-              "progress", "outcome", "streak"):
+              "progress", "outcome", "streak", "baseline"):
         if k in patch:
             v = patch[k]
-            if k in ("schedule", "outcome"):
+            if k in ("schedule", "outcome", "baseline"):
                 v = json.dumps(v) if v else None
             fields.append(f"{k}=?")
             values.append(v)
@@ -956,6 +994,8 @@ def delete_task(tid):
     if not task:
         return
     conn().execute("DELETE FROM agent_tasks WHERE id=?", (tid,))
+    conn().execute("DELETE FROM issues WHERE task_id=?", (tid,))
+    conn().execute("DELETE FROM agent_calls WHERE task_id=?", (tid,))
     conn().execute("UPDATE conversations SET deleted_at=? WHERE id=?", (now(), task["conversation_id"]))
     conn().execute("UPDATE agent_approvals SET status='cancelled' WHERE conversation_id=? AND status='pending'",
                    (task["conversation_id"],))
@@ -1028,3 +1068,77 @@ def answer_approval(aid, status, reason=""):
     cur = conn().execute("UPDATE agent_approvals SET status=?, reason=?, answered_at=? WHERE id=? AND status='pending'",
                          (status, reason, now(), aid))
     return cur.rowcount == 1
+
+
+# ---------- coordination: executor calls and issues (coordination.py) ----------
+
+def create_call(agent_id, task_id, origin_id, role, runtime, model, label, request):
+    cid = new_id()[:12]
+    conn().execute(
+        """INSERT INTO agent_calls(id, agent_id, task_id, origin_id, role, runtime, model, label, request, created_at)
+           VALUES(?,?,?,?,?,?,?,?,?,?)""",
+        (cid, agent_id, task_id, origin_id, role, runtime, model, label, request, now()))
+    return get_call(cid)
+
+
+def get_call(cid):
+    row = conn().execute("SELECT * FROM agent_calls WHERE id=?", (cid,)).fetchone()
+    return dict(row) if row else None
+
+
+def update_call(cid, patch):
+    fields, values = [], []
+    for k in ("conversation_id", "message_id", "status", "verdict", "fingerprint", "result", "finished_at"):
+        if k in patch:
+            fields.append(f"{k}=?")
+            values.append(patch[k])
+    if fields:
+        values.append(cid)
+        conn().execute(f"UPDATE agent_calls SET {', '.join(fields)} WHERE id=?", values)
+    return get_call(cid)
+
+
+def list_calls(agent_id, task_id=None):
+    """Oldest first."""
+    q, args = "SELECT * FROM agent_calls WHERE agent_id=?", [agent_id]
+    if task_id:
+        q += " AND task_id=?"
+        args.append(task_id)
+    return [dict(r) for r in conn().execute(q + " ORDER BY created_at, rowid", args)]
+
+
+def create_issue(agent_id, task_id, kind, title, detail, raised_by, call_id=None, status="open"):
+    iid = new_id()[:8]
+    t = now()
+    conn().execute(
+        """INSERT INTO issues(id, agent_id, task_id, kind, title, detail, status, raised_by, call_id, created_at, updated_at)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+        (iid, agent_id, task_id, kind, title, detail or "", status, raised_by, call_id, t, t))
+    return get_issue(iid)
+
+
+def get_issue(iid):
+    row = conn().execute("SELECT * FROM issues WHERE id=?", (iid,)).fetchone()
+    return dict(row) if row else None
+
+
+def update_issue(iid, patch):
+    fields, values = [], []
+    for k in ("kind", "title", "detail", "status", "resolution", "closed_by"):
+        if k in patch:
+            fields.append(f"{k}=?")
+            values.append(patch[k])
+    if fields:
+        fields.append("updated_at=?")
+        values += [now(), iid]
+        conn().execute(f"UPDATE issues SET {', '.join(fields)} WHERE id=?", values)
+    return get_issue(iid)
+
+
+def list_issues(agent_id, task_id=None):
+    """Oldest first. `task_id`: only that objective's issues."""
+    q, args = "SELECT * FROM issues WHERE agent_id=?", [agent_id]
+    if task_id:
+        q += " AND task_id=?"
+        args.append(task_id)
+    return [dict(r) for r in conn().execute(q + " ORDER BY created_at, rowid", args)]

@@ -930,7 +930,8 @@ def _agent_summary(agent):
     active = generation.active_conversations()
     # what waits on the user: parked approvals and tasks blocked on a question
     agent["blocked"] = sum(1 for t in tasks if t["status"] == "blocked")
-    agent["pending"] = len(db.pending_approvals(agent_id=agent["id"])) + agent["blocked"]
+    agent["pending"] = (len(db.pending_approvals(agent_id=agent["id"])) + agent["blocked"]
+                        + len(coordination.pending_approvals(agent["id"])))
     agent["running"] = sum(1 for t in tasks if t["conversation_id"] in active) + (agent["conversation_id"] in active)
     agent["task_count"] = len(tasks)
     return agent
@@ -1003,9 +1004,41 @@ def api_agent(h, m):
         conv = db.get_conversation(a["conversation_id"]) or {}
         approvals.append({"id": a["id"], "conversation_id": a["conversation_id"], "message_id": a["message_id"],
                           "request": a["request"], "created_at": a["created_at"], "where": conv.get("title") or ""})
+    approvals += coordination.pending_approvals(agent["id"])  # executors waiting on a card
     actions = [{"id": k, "label": label, "default": d} for k, (label, d) in agent_mode.ACTIONS.items()]
     return {"agent": agent, "tasks": tasks, "notes": db.list_notes(agent["id"]), "approvals": approvals,
-            "activity": db.list_log(agent["id"], limit=40), "actions": actions, "rules": agent_mode.rules_of(agent)}
+            "activity": db.list_log(agent["id"], limit=40), "actions": actions, "rules": agent_mode.rules_of(agent),
+            "issues": db.list_issues(agent["id"]), "calls": [_call_summary(c) for c in db.list_calls(agent["id"])]}
+
+
+def _call_summary(c):
+    return {k: c[k] for k in ("id", "task_id", "role", "runtime", "model", "label", "request", "conversation_id",
+                              "message_id", "status", "verdict", "created_at", "finished_at")} | {
+        "result": (c["result"] or "")[:600], "reviewed_current": None}
+
+
+@route("PATCH", r"/api/issues/(\w+)")
+def api_issue_update(h, m):
+    """The user closing, discarding or reopening one of an agent's issues (coordination.py)."""
+    issue = db.get_issue(m[1])
+    if not issue:
+        raise HttpError(404, "Questão não encontrada.")
+    body = h.json()
+    status = body.get("status")
+    if status not in ("open", "resolved", "discarded"):
+        raise HttpError(400, "Estado inválido.")
+    resolution = (body.get("resolution") or "").strip()[:4000]
+    if status != "open" and not resolution:
+        raise HttpError(400, "Diga como a questão foi resolvida ou por que foi descartada.")
+    issue = db.update_issue(m[1], {"status": status, "resolution": resolution or None,
+                                   "closed_by": "você" if status != "open" else None})
+    if issue["task_id"]:
+        task = db.get_task(issue["task_id"])
+        if task:
+            agent_mode.log(task, "resumed" if status == "open" else "ran",
+                           f"Você {'reabriu' if status == 'open' else 'fechou'} a questão “{issue['title']}”.")
+    _agent_event(issue["agent_id"])
+    return issue
 
 
 @route("PATCH", r"/api/agents/(\w+)")
