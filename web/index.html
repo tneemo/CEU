@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CEU</title>
+  <meta name="color-scheme" content="dark light">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/vendor/katex/katex.css">
+  <link rel="stylesheet" href="/css/app.css">
+  <script>
+    // Apply theme before first paint to avoid a flash.
+    try {
+      const t = localStorage.getItem('ceu:theme') || 'system';
+      const dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      const fs = localStorage.getItem('ceu:font');
+      if (fs) document.documentElement.style.setProperty('--fs-body', fs + 'px');
+      if (localStorage.getItem('ceu:sidebar') === 'closed' && innerWidth > 760) document.documentElement.dataset.sidebar = 'closed';
+    } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+  </script>
+</head>
+<body>
+  <canvas id="ambient" aria-hidden="true"></canvas>
+
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar" aria-label="Conversas">
+      <div class="sb-head">
+        <a class="brand" href="/" data-nav="new" aria-label="CEU — nova conversa">
+          <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 20 7.4v9.2L12 21.2 4 16.6V7.4Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4 7.4 12 12l8-4.6M12 12v9.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" opacity=".55"/></svg>
+          <span>CEU</span>
+        </a>
+        <button class="icon-btn" id="sb-collapse" data-tip="Recolher barra lateral" data-kbd="Ctrl B" aria-label="Recolher barra lateral"></button>
+      </div>
+      <div class="sb-actions">
+        <button class="sb-action" id="sb-new"><span class="ic" data-icon="new"></span><span class="lbl">Nova conversa</span><kbd>Ctrl ⇧ O</kbd></button>
+        <button class="sb-action" id="sb-search"><span class="ic" data-icon="search"></span><span class="lbl">Buscar</span><kbd>Ctrl K</kbd></button>
+      </div>
+      <div class="sb-list" id="sb-list" role="list"></div>
+      <div class="sb-foot">
+        <button class="sb-action" id="sb-settings"><span class="ic" data-icon="settings"></span><span class="lbl">Configurações</span><kbd>Ctrl ,</kbd></button>
+      </div>
+    </aside>
+    <div class="scrim" id="scrim"></div>
+
+    <main class="main is-empty" id="main">
+      <header class="topbar" id="topbar">
+        <button class="icon-btn only-collapsed" id="tb-sidebar" data-tip="Abrir barra lateral" data-kbd="Ctrl B" aria-label="Abrir barra lateral"></button>
+        <button class="icon-btn only-mobile" id="tb-menu" aria-label="Menu"></button>
+        <button class="title-btn" id="tb-title" hidden><span class="t"></span><span class="ic" data-icon="chevron-down"></span></button>
+        <div class="grow"></div>
+        <button class="icon-btn only-collapsed-or-mobile" id="tb-new" data-tip="Nova conversa" data-kbd="Ctrl ⇧ O" aria-label="Nova conversa"></button>
+      </header>
+
+      <section class="stage" id="stage">
+        <div class="empty" id="empty">
+          <div class="field-wrap" id="field-wrap">
+            <canvas id="field" aria-hidden="true"></canvas>
+            <div class="field-label" id="field-label" aria-live="polite"></div>
+          </div>
+        </div>
+        <div class="thread" id="thread" tabindex="-1">
+          <div class="thread-inner" id="thread-inner"></div>
+        </div>
+        <nav class="rail" id="rail" aria-label="Mapa da conversa"></nav>
+        <button class="to-bottom" id="to-bottom" aria-label="Ir para o fim" tabindex="-1"></button>
+      </section>
+
+      <div class="dock" id="dock">
+        <form class="composer" id="composer" autocomplete="off">
+          <div class="attachments" id="attachments"></div>
+          <textarea id="input" rows="1" placeholder="Mensagem" aria-label="Mensagem" spellcheck="true"></textarea>
+          <div class="composer-bar">
+            <button type="button" class="icon-btn" id="attach-btn" data-tip="Anexar arquivos" aria-label="Anexar arquivos"></button>
+            <input type="file" id="file-input" multiple hidden>
+            <div class="grow"></div>
+            <button type="button" class="model-btn" id="model-btn" data-tip="Trocar modelo" data-kbd="Ctrl ." aria-haspopup="menu"><span class="name"></span><span class="effort"></span><span class="ic" data-icon="chevron-down"></span></button>
+            <button type="submit" class="send-btn" id="send-btn" aria-label="Enviar"></button>
+          </div>
+        </form>
+        <div class="dock-hint" id="dock-hint"></div>
+      </div>
+    </main>
+  </div>
+
+  <div class="drop-overlay" id="drop-overlay"><div><span data-icon="attach"></span>Solte para anexar</div></div>
+  <div id="layer"></div>
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+  <div class="tooltip" id="tooltip" role="tooltip"></div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

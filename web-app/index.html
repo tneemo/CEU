@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <title>CEU</title>
+    <script>
+      // Apply theme, text size and sidebar state before first paint to avoid a flash.
+      try {
+        const t = localStorage.getItem('ceu:theme') || 'system';
+        const dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        const fs = localStorage.getItem('ceu:font');
+        if (fs) document.documentElement.style.setProperty('--fs-body', fs + 'px');
+        const ap = JSON.parse(localStorage.getItem('ceu:appearance') || 'null');
+        if (ap) {
+          document.documentElement.dataset.chatFont = ap.chatFont || 'sans';
+          document.documentElement.dataset.motion = ap.motion || 'system';
+          if (ap.code) document.documentElement.style.setProperty('--fs-code', ap.code + 'px');
+          const w = { narrow: 640, medium: 760, wide: 940 }[ap.width];
+          if (w) document.documentElement.style.setProperty('--thread-w', w + 'px');
+        }
+        if (localStorage.getItem('ceu:sidebar') === 'closed' && innerWidth > 760) document.documentElement.dataset.sidebar = 'closed';
+      } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

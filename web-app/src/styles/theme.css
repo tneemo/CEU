@@ -1,0 +1,132 @@
+/* Design tokens — "PS2 × Frutiger Aero".
+   Dark  = the PS2 boot void: deep indigo, fog, translucent geometry, coloured light-orbs.
+   Light = Aero sky: Win7-style glass over a bright gradient, bubbles instead of cubes.
+   The active theme is set on <html data-theme> before first paint (index.html)
+   and kept in sync by applyTheme() in state/actions.ts. */
+
+:root {
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --font-mono: "Cascadia Code", "Cascadia Mono", "JetBrains Mono", "SF Mono", Consolas, monospace;
+  --fs-body: 15px;
+  --fs-ui: 13.5px;
+  --fs-small: 12px;
+  --radius-s: 8px;
+  --radius: 12px;
+  --radius-l: 20px;
+  --sidebar-w: 276px;
+  --thread-w: 760px;
+  --ease: cubic-bezier(.2, .7, .1, 1);
+  --ease-depth: cubic-bezier(.16, 1, .3, 1);
+  --t-fast: 120ms;
+  --t: 200ms;
+  --t-slow: 420ms;
+
+  /* PS2 status orbs — used as small lights, never as fills */
+  --orb-red: #ff4d6a;
+  --orb-blue: #4d86ff;
+  --orb-green: #45f08a;
+  --orb-pink: #ff4fd8;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --void: #060830;
+  --fog: rgba(110, 130, 255, .22);
+  --plane: #0c1148;
+  --plane-2: #141b66;
+  --plane-3: #1d2784;
+  --plane-4: #2a37a8;
+  --line: rgba(175, 195, 255, .14);
+  --line-2: rgba(175, 195, 255, .24);
+  --line-3: rgba(190, 210, 255, .42);
+  --ink: #eef2ff;
+  --ink-2: #b9c5f5;
+  --ink-3: #8593d6;
+  --ink-4: #5a67a8;
+  --accent: #79d6ff;
+  --accent-2: rgba(121, 214, 255, .16);
+  --accent-3: rgba(121, 214, 255, .45);
+  --on-accent: #041530;
+  --bubble: #23309a;
+  --code-bg: rgba(4, 6, 36, .62);
+  --danger: #ff8fa0;
+  --danger-2: rgba(255, 110, 130, .14);
+  --ok: #67f0a6;
+  --particle: 200, 214, 255;
+  --sheen: 130, 190, 255;
+  --cube: 150, 168, 255;
+
+  /* glass */
+  --g-top: rgba(150, 168, 255, .20);
+  --g-bot: rgba(12, 18, 100, .46);
+  --g-edge: rgba(200, 214, 255, .34);
+  --g-hi: rgba(255, 255, 255, .42);
+  --g-blur: 22px;
+  --glow: 0 0 18px rgba(121, 214, 255, .35);
+  --shadow: 0 1px 0 rgba(255,255,255,.28) inset, 0 24px 60px -12px rgba(0,0,30,.7), 0 3px 12px rgba(0,0,30,.4);
+  --shadow-s: 0 1px 0 rgba(255,255,255,.22) inset, 0 14px 40px -10px rgba(0,0,30,.6);
+
+  /* glossy control (Win7 split-gloss) */
+  --btn-a: rgba(255,255,255,.26);
+  --btn-b: rgba(255,255,255,.08);
+  --btn-c: rgba(120,150,255,.16);
+  --btn-d: rgba(120,160,255,.32);
+  /* primary = aqua orb */
+  --pri-a: #a6ecff;
+  --pri-b: #37b4f5;
+  --pri-c: #0b73d8;
+  --pri-d: #2fc0ff;
+  --pri-ink: #ffffff;
+  --pri-edge: rgba(180, 235, 255, .7);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --void: #7fcbf6;
+  --fog: rgba(255, 255, 255, .7);
+  --plane: #f1f9ff;
+  --plane-2: #ffffff;
+  --plane-3: #e2f2fd;
+  --plane-4: #cbe6fa;
+  --line: rgba(20, 90, 150, .12);
+  --line-2: rgba(20, 90, 150, .22);
+  --line-3: rgba(20, 90, 150, .38);
+  --ink: #0b2745;
+  --ink-2: #385676;
+  --ink-3: #5f7f9f;
+  --ink-4: #93aec8;
+  --accent: #0a7fd4;
+  --accent-2: rgba(10, 127, 212, .12);
+  --accent-3: rgba(10, 127, 212, .36);
+  --on-accent: #ffffff;
+  --bubble: #d3ecff;
+  --code-bg: rgba(255, 255, 255, .62);
+  --danger: #c9302f;
+  --danger-2: rgba(201, 48, 47, .1);
+  --ok: #17a05b;
+  --particle: 255, 255, 255;
+  --sheen: 90, 190, 255;
+  --cube: 255, 255, 255;
+
+  --g-top: rgba(255, 255, 255, .78);
+  --g-bot: rgba(206, 236, 255, .56);
+  --g-edge: rgba(255, 255, 255, .95);
+  --g-hi: rgba(255, 255, 255, 1);
+  --g-blur: 18px;
+  --glow: 0 0 16px rgba(60, 170, 255, .4);
+  --shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 22px 50px -14px rgba(10,70,130,.5), 0 3px 10px rgba(10,70,130,.2);
+  --shadow-s: 0 1px 0 rgba(255,255,255,.9) inset, 0 12px 32px -10px rgba(10,70,130,.4);
+
+  --btn-a: rgba(255,255,255,.95);
+  --btn-b: rgba(236,247,255,.8);
+  --btn-c: rgba(200,230,250,.75);
+  --btn-d: rgba(224,242,254,.95);
+  --pri-a: #9ff0b0;
+  --pri-b: #3ecb63;
+  --pri-c: #14953b;
+  --pri-d: #4fd97a;
+  --pri-ink: #ffffff;
+  --pri-edge: rgba(255, 255, 255, .8);
+}

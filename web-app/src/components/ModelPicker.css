@@ -1,0 +1,96 @@
+/* Model picker: trigger reuses .model-btn (app.css); the menu reuses .menu,
+   .menu-item, .menu-h and .menu-sep so it reads like every other popover. */
+.model-picker {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.model-picker-menu.menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  max-height: min(480px, 70vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  z-index: 20;
+  transform-origin: right bottom;
+  animation-name: menu-in-up;
+}
+
+.model-picker-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 5px;
+}
+
+.model-picker-foot {
+  flex: none;
+  padding: 5px;
+  border-top: 1px solid var(--line);
+}
+
+.model-picker-menu > .model-picker-back {
+  margin: 5px 5px 0;
+  width: calc(100% - 10px);
+}
+
+.model-picker-menu > .menu-sep {
+  margin: 5px 4px 0;
+}
+
+.model-picker-row .lbl {
+  font-size: 13px;
+}
+
+.model-picker-row-aside {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.model-picker-row-aside svg {
+  width: 14px;
+  height: 14px;
+}
+
+.model-picker-manage {
+  color: var(--ink-2);
+}
+
+.model-picker-empty {
+  padding: 14px 10px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.model-picker-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.model-picker-back svg {
+  width: 14px;
+  height: 14px;
+}
+
+.model-picker-back:hover {
+  background: var(--plane-3);
+  color: var(--ink);
+}

@@ -1,0 +1,71 @@
+/* Main navigation: the area destinations (Chat, Code) at the top of the sidebar, and the
+   rail the sidebar folds into on desktop — it never disappears, so the areas stay one click
+   away. Loaded last; reuses the sidebar's pills and the HUD hairline of .sb-foot. */
+
+:root { --rail-w: 60px; }
+
+/* ------------------------------------------------------------------ area destinations */
+
+.sb-nav { position: relative; display: flex; flex-direction: column; gap: 2px; padding-bottom: 10px; margin-bottom: 8px; }
+.sb-nav::after { content: ""; position: absolute; left: 0; right: 14px; bottom: 0; height: 1px; background: linear-gradient(90deg, var(--g-edge, var(--line)), transparent); }
+.sb-nav-item { position: relative; font-weight: 500; }
+.sb-nav-item .ic, .sb-nav-item svg { transition: color var(--t-fast); }
+.sb-nav-item.is-active {
+  color: var(--ink);
+  background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.05));
+  border-color: var(--g-edge, var(--line-2));
+  box-shadow: 0 1px 0 rgba(255,255,255,.3) inset;
+}
+.sb-nav-item.is-active svg { color: var(--accent); filter: drop-shadow(0 0 5px var(--accent-3)); }
+:root[data-theme="light"] .sb-nav-item.is-active { background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(220,240,255,.6)); }
+.sb-nav-item .agent-badge { margin-left: auto; }
+
+#sb-expand { display: none; }
+
+/* ------------------------------------------------------------------ code: runtime next to the folder */
+
+.project-row { gap: 8px; flex-wrap: wrap; }
+.runtime-chip .n { font-weight: 500; }
+.runtime-badge {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; margin-left: 4px;
+  border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); font-size: 12px; white-space: nowrap;
+}
+.runtime-badge svg { width: 12px; height: 12px; color: var(--accent); }
+
+/* ------------------------------------------------------------------ rail (desktop, sidebar folded) */
+
+@media (min-width: 761px) {
+  :root[data-sidebar="closed"] .app,
+  :root[data-sidebar="closed"] .app.has-agent { grid-template-columns: var(--rail-w) minmax(0, 1fr); }
+  :root[data-sidebar="closed"] .main { margin-left: 0; }
+
+  :root[data-sidebar="closed"] .sidebar {
+    opacity: 1; transform: none; pointer-events: auto;
+    padding: 12px 8px 10px; align-items: center;
+  }
+  :root[data-sidebar="closed"] .sidebar > * { width: 100%; }
+  :root[data-sidebar="closed"] .sb-head { flex-direction: column; height: auto; gap: 8px; padding: 0; margin-bottom: 10px; }
+  :root[data-sidebar="closed"] .brand { justify-content: center; }
+  :root[data-sidebar="closed"] .brand span,
+  :root[data-sidebar="closed"] #sb-collapse,
+  :root[data-sidebar="closed"] .sidebar .lbl,
+  :root[data-sidebar="closed"] .sidebar kbd,
+  :root[data-sidebar="closed"] .sb-agents,
+  :root[data-sidebar="closed"] .sb-list-head,
+  :root[data-sidebar="closed"] .sb-list { display: none; }
+  :root[data-sidebar="closed"] #sb-expand { display: inline-flex; }
+  :root[data-sidebar="closed"] .sb-nav { align-items: center; }
+  :root[data-sidebar="closed"] .sb-nav::after,
+  :root[data-sidebar="closed"] .sb-foot::before { right: 0; }
+  :root[data-sidebar="closed"] .sb-actions { align-items: center; }
+  :root[data-sidebar="closed"] .sidebar .sb-action { width: 40px; height: 40px; padding: 0; justify-content: center; }
+  :root[data-sidebar="closed"] .sb-nav-item .agent-badge { position: absolute; top: -3px; right: -5px; min-width: 16px; height: 16px; font-size: 10px; }
+  :root[data-sidebar="closed"] .sb-foot { margin-top: auto; align-items: center; }
+
+  /* the rail already offers "open sidebar" and "new": the topbar copies are for mobile */
+  .only-collapsed, .only-collapsed-or-mobile { display: none !important; }
+}
+
+@media (min-width: 1181px) {
+  :root[data-sidebar="closed"] .app.has-agent { grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--agent-panel-w); }
+}
