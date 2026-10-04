@@ -694,8 +694,19 @@ def _entry(integ):
     return e
 
 
-def snapshot(integ):
-    e = _entry(integ)
+def snapshot(integ, probe=True):
+    """Return the integration snapshot, optionally without probing it.
+
+    The normal UI path probes stale integrations. Agent prompts pass
+    ``probe=False`` so a vendor CLI health check cannot block a model turn.
+    """
+    if probe:
+        e = _entry(integ)
+    else:
+        with _lock:
+            e = _cache.get(integ.id)
+        if not e:
+            return None
     with _lock:
         running = _jobs.get(integ.group)
         error = _errors.get(integ.group) or e["error"]
@@ -771,6 +782,12 @@ def get(integ_id, refresh=False):
             _errors.pop(integ.group, None)
         _probe_many(_group(integ))
     return snapshot(integ)
+
+
+def cached(integ_id):
+    """Return a cached snapshot without launching a probe, or ``None``."""
+    integ = BY_ID.get(integ_id)
+    return snapshot(integ, probe=False) if integ else None
 
 
 def _start(integ, kind, label, work):

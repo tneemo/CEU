@@ -265,11 +265,9 @@ def code_system_prompt(settings, conv):
         "- Faça só o que foi pedido. Não faça commit, push nem nada irreversível sem o usuário pedir.\n"
         "- Entre uma etapa e outra, escreva uma frase curta dizendo o que vai fazer; não narre cada ferramenta.\n"
         "- Se o usuário negar uma ação, não insista nela: ajuste o plano ou pergunte.",
-        "Permissões: " + MODE_TEXT.get(conv.get("permission_mode") or "manual", MODE_TEXT["manual"]),
     ]
-    executor = coordination.executor_note(conv)  # a session an agent delegated work to
-    if executor:
-        parts.append(executor)
+    executor = coordination.executor_note(conv)  # a session an agent delegated work to: its role replaces the mode text
+    parts.append(executor or "Permissões: " + MODE_TEXT.get(conv.get("permission_mode") or "manual", MODE_TEXT["manual"]))
     name, text = code_tools.project_instructions(root)
     if text.strip():
         parts.append(f"Instruções do projeto ({name}):\n{text.strip()}")

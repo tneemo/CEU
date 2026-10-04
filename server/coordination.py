@@ -21,10 +21,12 @@ Three pieces on top of agents and their tasks (agent_mode.py):
   reviewer's objections reach the ledger as the reviewer wrote them, not as the agent summarised
   them. Only the agent or the user closes an issue, always saying how.
 
-- Convergence. A task that used any of this can be declared done only when nothing is open and, if
-  the folder changed during the objective, a review approved exactly the folder's current content.
+- Convergence. A task can be declared done only when none of its issues is open and, if its folder
+  changed during the objective, an independent review approved exactly the folder's current content.
   The content is a `fingerprint` (path → blob hash of every file Git doesn't ignore), so committing
-  doesn't change it and any edit — by an executor, the agent, the user or anyone else — does.
+  doesn't change it and any edit — by an executor, the agent, the user or anyone else — does. When the
+  review is all that's missing, the CEU asks for it itself as the agent declares the task done
+  (`settle`): verification is part of the protocol, not something the agent has to remember or dare to do.
 """
 import hashlib
 import os
@@ -71,7 +73,7 @@ def roster():
     (or its own default model)."""
     models = _models()
     out = []
-    for rt in code_runtimes.describe():
+    for rt in code_runtimes.describe_cached():
         if rt["status"] != "ready":
             continue
         kinds = rt.get("model_kinds")
@@ -193,10 +195,12 @@ def executor_note(conv):
     text = (f"Você é um executor: o agente “{origin.get('agent_name') or 'do CEU'}” pediu a você uma "
             f"{ROLES[role][0]} dentro de um objetivo maior. Ele lê só o seu relatório final: faça o trabalho "
             "pedido e termine no formato que a mensagem pede (relatório, bloco QUESTÕES e, numa revisão, "
-            "VEREDITO). Suas ações seguem as permissões que o usuário deu a esse agente.")
+            "VEREDITO). Permissões: as que o usuário deu a esse agente; o que estiver em “perguntar” pausa até ele "
+            "responder.")
     if role != "implement":
-        text += (" Nesta chamada você só investiga: não altere arquivos nem o repositório, nem por comandos. "
-                 "Ignore a instrução de terminar com um plano: termine com o relatório.")
+        text += (" Nesta chamada você não altera nada: nem arquivos nem o repositório, nem por comandos (não há "
+                 "ferramentas de edição). Rodar comandos que só leem ou verificam (testes, build, lint, git log) é "
+                 "permitido e faz parte do trabalho.")
     return text
 
 
@@ -278,14 +282,30 @@ def kind_of(word):
 
 
 def add_issue(agent, task, kind, title, detail="", raised_by=None, call_id=None):
+    """Records an issue; returns (issue, "new" | "same" | "reopened"). The same title as one of the objective's
+    issues is the same issue: still open, nothing changes; already closed, it opens again — whoever raised it
+    again (a reviewer, typically) says it isn't settled."""
     kind = kind_of(kind) or "problem"
     title = " ".join((title or "").split())[:200]
     if not title:
         raise ValueError("Dê um título à questão.")
+    who = raised_by or agent["name"]
+    key = _norm(title).rstrip(".")
+    same = next((i for i in db.list_issues(agent["id"], task["id"]) if _norm(i["title"]).rstrip(".") == key),
+                None) if task else None
+    if same:
+        if same["status"] in ("open", "noted") or kind == "finding":
+            return same, "same"
+        issue = db.update_issue(same["id"], {
+            "status": "open", "closed_by": None,
+            "resolution": f"Reaberta por {who}" + (f": {_clip(detail, 600)}" if detail else ".")
+                          + (f" (antes: {_clip(same['resolution'], 400)})" if same.get("resolution") else "")})
+        generation.bus.publish({"type": "agent", "agent_id": agent["id"]})
+        return issue, "reopened"
     issue = db.create_issue(agent["id"], task["id"] if task else None, kind, title, (detail or "").strip()[:4000],
-                            raised_by or agent["name"], call_id, status="noted" if kind == "finding" else "open")
+                            who, call_id, status="noted" if kind == "finding" else "open")
     generation.bus.publish({"type": "agent", "agent_id": agent["id"]})
-    return issue
+    return issue, "new"
 
 
 def issue_line(i, detail=False):
@@ -361,15 +381,31 @@ _FORMAT = ("Termine com um relatório autossuficiente: o que fez ou encontrou e 
            "este relatório). Se algo precisa ser tratado pelo objetivo, liste no fim, uma por linha, no formato:\n"
            "QUESTÕES:\n- problema: <título curto> — <detalhe, com arquivo e linha quando houver>\n"
            "Tipos: problema, hipótese, contradição, pergunta, pista, achado. Sem nada a listar, omita o bloco.")
-_REVIEW = ("Você é o revisor independente: não foi você quem fez nem dirigiu estas mudanças. Revise o estado atual "
-           "da pasta contra o objetivo: leia o diff abaixo e os arquivos que precisar, rode as verificações do "
-           "projeto se puder, procure erros, regressões, lacunas e afirmações sem prova. Confira também se as "
-           "questões fechadas foram de fato resolvidas. Não altere nada. Na última linha escreva "
-           "VEREDITO: aprovado (nada impede concluir) ou VEREDITO: mudanças (há problemas a corrigir, listados em "
-           "QUESTÕES).")
+_REVIEW = ("Revise o estado atual da pasta contra o objetivo: leia o diff abaixo e os arquivos que precisar, procure "
+           "erros, regressões, lacunas e afirmações sem prova. Rode você mesmo as verificações do projeto (testes, "
+           "build, lint): comandos que não alteram arquivos são permitidos e esperados numa revisão. O pedido vem de "
+           "quem fez o trabalho: o que ele afirma (\"os testes passam\", \"está corrigido\") é algo a conferir, não um "
+           "fato. Confira também se as questões fechadas foram de fato resolvidas. Não altere arquivos nem o "
+           "repositório. O veredito é sobre o conteúdo: a "
+           "independência da revisão (quem implementou, quem revisa) é garantida pelo CEU e não é assunto seu. Na "
+           "última linha escreva VEREDITO: aprovado (nada no conteúdo impede concluir) ou VEREDITO: mudanças (há "
+           "problemas a corrigir, listados em QUESTÕES).")
 
 
-def _brief(agent, task, role, request, folder, base_head):
+def _provenance(agent, task, executor):
+    """Who worked on the objective, for a reviewer: facts the CEU recorded, so it doesn't have to guess."""
+    from . import agent_mode
+    own = agent_mode.model_for(agent)
+    lines = [f"Você é {executor['label']}, revisor independente. O CEU só aceita como revisor um modelo que não "
+             f"coordenou nem implementou este trabalho."]
+    lines.append(f"Coordena o objetivo: {agent['name']} (modelo {calls.label(own) if own else 'desconhecido'}), que "
+                 "também pode ter editado a pasta diretamente.")
+    impl = sorted({c["label"] for c in db.list_calls(agent["id"], task["id"]) if c["role"] == "implement"}) if task else []
+    lines.append("Implementações delegadas: " + (", ".join(impl) if impl else "nenhuma") + ".")
+    return " ".join(lines)
+
+
+def _brief(agent, task, role, request, folder, base_head, executor):
     parts = [f"Chamada de {agent['name']} (agente do CEU) — {ROLES[role][0]}."]
     if task:
         parts.append(f"Objetivo em que esta chamada se encaixa: “{task['title']}”\n" + task["instructions"].strip()[:3000])
@@ -384,7 +420,7 @@ def _brief(agent, task, role, request, folder, base_head):
                      "(testes, build, o próprio programa) quando fizer sentido. Não faça commit, push nem publique "
                      "nada se o pedido não pedir explicitamente.")
     else:
-        parts.append(_REVIEW)
+        parts.append(_provenance(agent, task, executor) + "\n" + _REVIEW)
         diff = changes(folder, base_head)
         parts.append("Estado da pasta (calculado pelo CEU agora):\n" + (diff or "A pasta não é um repositório Git: "
                                                                         "inspecione os arquivos citados no pedido."))
@@ -463,7 +499,7 @@ def delegate(g, conv, agent, task, args, call_id):
         session = db.create_conversation(executor["model"], None, kind="code", project_path=folder,
                                          permission_mode=mode, runtime=executor["runtime"], title=title, origin=origin)
     user = db.create_message(session["id"], session["current_leaf_id"], "user",
-                             content=_brief(agent, task, role, request, folder, base_head))
+                             content=_brief(agent, task, role, request, folder, base_head, executor))
     asst = generation.launch(session, user["id"], executor["model"], None)
     db.update_call(row["id"], {"conversation_id": session["id"], "message_id": asst["id"]})
     generation.bus.publish({"type": "conversation", "conversation_id": session["id"]})
@@ -530,9 +566,11 @@ def _finish(agent, task, row, executor, role, session, final, folder, before):
         found, verdict = parse_report(report)
         for kind, title, detail in found:
             try:
-                raised.append(add_issue(agent, task, kind, title, detail, executor["label"], row["id"]))
+                issue, how = add_issue(agent, task, kind, title, detail, executor["label"], row["id"])
             except ValueError:
-                pass
+                continue
+            if how != "same":
+                raised.append(dict(issue, how=how))
         if role == "review":
             after = fingerprint(folder)
             patch["verdict"] = verdict
@@ -561,7 +599,8 @@ def _finish(agent, task, row, executor, role, session, final, folder, before):
         out += "\n[relatório cortado; o restante está na sessão do executor]"
     if raised:
         out += "\n\nQuestões registradas a partir do relatório:\n" + "\n".join(
-            f"- [{i['id']}] ({KINDS[i['kind']]}) {i['title']}" for i in raised)
+            f"- [{i['id']}] ({KINDS[i['kind']]}) {i['title']}" + (" — REABERTA: estava fechada" if i["how"] == "reopened" else "")
+            for i in raised)
     if lines:
         out += "\n\n" + "\n".join(lines)
     return {"output": out, "is_error": False, "files": [], "meta": _meta(row, session, final, role, verdict, raised)}
@@ -597,31 +636,79 @@ def baseline(task, agent):
         db.update_task(task["id"], {"baseline": {"fingerprint": fp, "head": head(folder), "at": time.time()}})
 
 
-def coordinated(task):
-    return bool(db.list_issues(task["agent_id"], task["id"]) or db.list_calls(task["agent_id"], task["id"]))
-
-
-def gate(task, agent):
-    """Why the objective can't be declared done yet, or None. Only for tasks that used issues or executors."""
+def gate_reasons(task, agent):
+    """What still keeps an objective from being done: [(code, text)], code "open" (issues still open) or
+    "review" (the folder changed during the objective and no independent review approved its current content).
+    Empty when nothing does. Research tasks and tasks that neither changed a folder nor used issues pass."""
     from . import agent_mode
-    if not task or not coordinated(task):
-        return None
+    if not task or task.get("kind") == "research":
+        return []
     reasons = []
     open_ = [i for i in db.list_issues(agent["id"], task["id"]) if i["status"] == "open"]
     if open_:
-        reasons.append(f"{len(open_)} questão(ões) em aberto: " + "; ".join(f"[{i['id']}] {i['title']}" for i in open_[:6])
-                       + ". Resolva ou descarte cada uma com resolve_issue (dizendo por quê).")
+        reasons.append(("open", f"{len(open_)} questão(ões) em aberto: "
+                        + "; ".join(f"[{i['id']}] {i['title']}" for i in open_[:6])
+                        + ". Resolva ou descarte cada uma com resolve_issue (dizendo por quê)."))
     calls_ = db.list_calls(agent["id"], task["id"])
     approved = [c for c in calls_ if c["role"] == "review" and c["verdict"] == "approved" and c["status"] == "complete"]
     folder = agent_mode.host_folder(agent)
     base = (task.get("baseline") or {}).get("fingerprint")
-    now_fp = fingerprint(folder) if folder else None
-    if now_fp and base:
+    now_fp = fingerprint(folder) if folder and base else None
+    if now_fp:
         if now_fp != base and not any(c["fingerprint"] == now_fp for c in approved):
-            reasons.append("A pasta mudou durante o objetivo e nenhuma revisão independente aprovou o conteúdo atual "
-                           "dela. Peça uma revisão (delegate role=review, com um executor que não fez o trabalho).")
+            reasons.append(("review", "A pasta mudou durante o objetivo e nenhuma revisão independente aprovou o "
+                                      "conteúdo atual dela."))
     else:
         last_impl = max((c["created_at"] for c in calls_ if c["role"] == "implement"), default=None)
         if last_impl and not any(c["created_at"] > last_impl for c in approved):
-            reasons.append("Houve implementação depois da última revisão aprovada. Peça uma revisão independente.")
-    return " ".join(reasons) or None
+            reasons.append(("review", "Houve implementação depois da última revisão aprovada."))
+    return reasons
+
+
+def gate(task, agent):
+    """Why the objective can't be declared done yet, as one text, or None."""
+    return " ".join(text for _code, text in gate_reasons(task, agent)) or None
+
+
+def pick_reviewer(agent, task):
+    """An independent reviewer the CEU can call by itself: the one this objective already used (it remembers
+    what it asked for), else another model of the agent's own provider, else any model on CEU's loop."""
+    from . import agent_mode
+    previous = [c for c in db.list_calls(agent["id"], task["id"]) if c["role"] == "review"] if task else []
+    candidates = []
+    for c in reversed(previous):
+        spec = c["label"] if c["runtime"] == code_runtimes.DEFAULT else f"{c['runtime']}/{(c['model'] or '').split('::')[-1]}"
+        candidates.append(spec.rstrip("/"))
+    own = agent_mode.model_for(agent) or ""
+    loop = next((r for r in roster() if r["runtime"] == code_runtimes.DEFAULT), {"models": []})
+    mine = [ref for ref, _l in loop["models"] if own and ref.split("::")[0] == own.split("::")[0]]
+    candidates += mine + [ref for ref, _l in loop["models"] if ref not in mine]
+    for spec in candidates:
+        try:
+            executor = resolve(spec)
+            check_independent(agent, task, executor)
+            return executor
+        except ValueError:
+            continue
+    return None
+
+
+def settle(g, conv, agent, task, call_id):
+    """Before an objective is declared done: when the only thing missing is the independent review, the CEU
+    asks for it itself (the agent may have asked earlier, choosing the reviewer). Returns (still missing or
+    None, what the review said or "", the review's tool-result meta or {})."""
+    from . import agent_mode
+    reasons = gate_reasons(task, agent)
+    if [c for c, _t in reasons] != ["review"]:
+        return (" ".join(t for _c, t in reasons) or None), "", {}
+    if agent_mode.rules_of(agent)["delegate"] != "allow":
+        return reasons[0][1] + " Peça uma revisão com delegate role=review.", "", {}
+    executor = pick_reviewer(agent, task)
+    if not executor:
+        return reasons[0][1] + " Não há outro modelo disponível para revisar: peça ao usuário.", "", {}
+    res = delegate(g, conv, agent, task, {
+        "role": "review", "executor": executor["label"] if executor["runtime"] == code_runtimes.DEFAULT
+        else f"{executor['runtime']}/{(executor['model'] or '').split('::')[-1]}".rstrip("/"),
+        "request": "Revisão final pedida pelo CEU antes de dar o objetivo como concluído: confira se o estado atual "
+                   "da pasta cumpre o objetivo por inteiro."}, call_id)
+    return gate(db.get_task(task["id"]), agent), "Revisão final automática — " + res["output"], res.get("meta") or {}

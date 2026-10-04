@@ -242,6 +242,14 @@ export interface ToolResult {
     repository?: Record<string, unknown>;
     release?: Record<string, unknown>;
     artifacts_published?: Record<string, unknown>[];
+    /** delegate (server/coordination.py): the executor call, where it ran, its verdict and the issues it raised */
+    call?: string;
+    conversation_id?: string;
+    message_id?: string;
+    role?: string;
+    executor?: string;
+    verdict?: "approved" | "changes" | null;
+    issues?: string[];
     [key: string]: unknown;
   };
 }
@@ -263,11 +271,14 @@ export interface ApprovalRequest {
   action_label?: string;
   summary?: string;
   agent?: string;
+  /** an executor's card forwarded to the agent's `delegate` call (server/coordination.py) */
+  executor?: string;
+  executor_call_id?: string;
 }
 
 // ------------------------------------------------------------------ agents
 
-export type AgentAction = "web" | "computer" | "tasks" | "host_read" | "host_edit" | "host_command" | "host_git_read" | "host_git_write" | "host_github_publish";
+export type AgentAction = "web" | "computer" | "tasks" | "host_read" | "host_edit" | "host_command" | "host_git_read" | "host_git_write" | "host_github_publish" | "delegate";
 export type AgentDecision = "allow" | "ask" | "block";
 export type Schedule = { every_minutes: number } | { daily_at: string } | null;
 
@@ -342,6 +353,43 @@ export interface AgentApproval {
   request: ApprovalRequest;
   created_at: number;
   where: string;
+  /** executor: a card an executor's turn is blocked on (answered on its message, not parked) */
+  kind?: "executor";
+}
+
+/** Something an objective is unsure about or has to deal with (server/coordination.py). */
+export interface AgentIssue {
+  id: string;
+  agent_id: string;
+  task_id: string | null;
+  kind: "problem" | "hypothesis" | "contradiction" | "question" | "lead" | "finding";
+  title: string;
+  detail: string;
+  status: "open" | "noted" | "resolved" | "discarded";
+  resolution: string | null;
+  raised_by: string;
+  call_id: string | null;
+  closed_by: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+/** Work an agent asked of an executor: a Code session with another model or harness. */
+export interface AgentCall {
+  id: string;
+  task_id: string | null;
+  role: "investigate" | "implement" | "review";
+  runtime: string;
+  model: string | null;
+  label: string;
+  request: string;
+  conversation_id: string | null;
+  message_id: string | null;
+  status: "running" | "complete" | "error" | "stopped";
+  verdict: "approved" | "changes" | null;
+  result: string;
+  created_at: number;
+  finished_at: number | null;
 }
 
 export interface AgentDetail {
@@ -352,6 +400,8 @@ export interface AgentDetail {
   activity: AgentEvent[];
   actions: { id: AgentAction; label: string; default: AgentDecision }[];
   rules: Record<AgentAction, AgentDecision>;
+  issues?: AgentIssue[];
+  calls?: AgentCall[];
 }
 
 export type AgentFields = Partial<Pick<Agent, "name" | "instructions" | "model" | "effort" | "host_folder" | "rules" | "research_hours" | "paused">>;
@@ -463,7 +513,8 @@ export interface Conversation {
   task?: Pick<AgentTask, "id" | "title" | "kind" | "status" | "schedule"> | null;
   pending_approval?: { id: string; message_id: string; request: ApprovalRequest } | null;
   /** a Code session / agent task started by a delegated call from a Chat conversation */
-  origin?: { conversation_id: string; message_id: string; title: string } | null;
+  /** where a delegated session came from; `role`/`agent_name`: an executor an agent called (server/coordination.py) */
+  origin?: { conversation_id: string; message_id: string; title: string; role?: "investigate" | "implement" | "review"; agent_name?: string } | null;
   /** a Room (server/rooms.py) */
   room?: RoomConfig | null;
   room_running?: boolean;
@@ -630,6 +681,8 @@ export const api = {
     req<AgentTask>("PATCH", `/api/agent-tasks/${id}`, patch),
   runTask: (id: string) => req<AgentTask>("POST", `/api/agent-tasks/${id}/run`),
   deleteTask: (id: string) => req("DELETE", `/api/agent-tasks/${id}`),
+  updateIssue: (id: string, body: { status: "open" | "resolved" | "discarded"; resolution?: string }) =>
+    req<AgentIssue>("PATCH", `/api/issues/${id}`, body),
   answerAgentApproval: (id: string, body: { decision: "allow" | "always" | "deny"; reason?: string }) =>
     req<{ ok: boolean; conversation_id: string; message_id: string }>("POST", `/api/agent-approvals/${id}`, body),
 

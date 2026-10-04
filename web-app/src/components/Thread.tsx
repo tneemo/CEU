@@ -507,7 +507,8 @@ function CodeTurn({ cur, msgs, lastId }: { cur: Current; msgs: Message[]; lastId
   const toolLive = useApp((s) => s.toolLive);
   const segs = useMemo(() => codeSegments(msgs, toolLive), [msgs, toolLive]);
   const tail = msgs[msgs.length - 1];
-  const planDone = cur.conv.permission_mode === "plan" && tail?.id === lastId && tail.role === "assistant" && tail.status === "complete";
+  // an agent's executor (server/coordination.py) runs read-only by role, not as a plan waiting to be carried out
+  const planDone = cur.conv.permission_mode === "plan" && !cur.conv.origin?.role && tail?.id === lastId && tail.role === "assistant" && tail.status === "complete";
   return (
     <>
       {segs.map((sg) => {

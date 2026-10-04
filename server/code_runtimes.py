@@ -27,9 +27,12 @@ FAMILIES = {
 }
 
 
-def _integration_status(integ_id, ready_detail):
+def _integration_status(integ_id, ready_detail, probe=True):
     """(status, detail, integration summary) from the integration's lifecycle state."""
-    snap = integrations.get(integ_id)
+    snap = integrations.get(integ_id) if probe else integrations.cached(integ_id)
+    if not snap:
+        return "unavailable", "Ainda não verificado", {"id": integ_id, "state": "unknown",
+                                                         "detail": "Ainda não verificado"}
     summary = {"id": snap["id"], "state": snap["state"], "detail": snap["detail"]}
     if snap["state"] == integrations.CONNECTED:
         return "ready", ready_detail, summary
@@ -43,9 +46,9 @@ def _ceu():
             "caps": {"steer": True, "undo": True, "approvals": True}, "integration": None}
 
 
-def _codex_sdk():
+def _codex_sdk(probe=True):
     status, detail, integ = _integration_status(
-        "codex_sdk", "Harness do Codex (app-server): ferramentas e sandbox do Codex, aprovações no CEU")
+        "codex_sdk", "Harness do Codex (app-server): ferramentas e sandbox do Codex, aprovações no CEU", probe)
     return {"id": "codex_sdk", "family": "codex_sdk", "name": "Codex SDK", "status": status, "detail": detail,
             "modes": list(ALL_MODES), "default_mode": "manual",
             "mode_notes": {
@@ -57,9 +60,9 @@ def _codex_sdk():
             "model_kinds": ["codex"], "caps": {"steer": True, "undo": False, "approvals": True}, "integration": integ}
 
 
-def _claude_sdk():
+def _claude_sdk(probe=True):
     status, detail, integ = _integration_status(
-        "claude_sdk", "Claude Agent SDK: ferramentas do Claude Code, aprovações no CEU")
+        "claude_sdk", "Claude Agent SDK: ferramentas do Claude Code, aprovações no CEU", probe)
     return {"id": "claude_sdk", "family": "claude_sdk", "name": "Claude SDK", "status": status, "detail": detail,
             "modes": list(ALL_MODES), "default_mode": "manual",
             "mode_notes": {"auto": "bypassPermissions do SDK: edita e roda comandos sem perguntar e sem sandbox"},
@@ -67,13 +70,13 @@ def _claude_sdk():
             "integration": integ}
 
 
-def _redir(driver):
+def _redir(driver, probe=True):
     integ = None
     if not driver.implemented:
         status, detail = "planned", driver.pending or "Driver não implementado"
     elif driver.integration:
         status, detail, integ = _integration_status(
-            driver.integration, "Harness, ferramentas e login do próprio CLI; o CEU supervisiona")
+            driver.integration, "Harness, ferramentas e login do próprio CLI; o CEU supervisiona", probe)
     else:
         found = driver.find() is not None
         status = "ready" if found else "unavailable"
@@ -87,9 +90,14 @@ def _redir(driver):
             "integration": integ}
 
 
-def describe():
+def describe(probe=True):
     """Every runtime with its live state, for the client (GET /api/state)."""
-    return [_ceu(), _codex_sdk(), _claude_sdk()] + [_redir(d) for d in redir.DRIVERS.values()]
+    return [_ceu(), _codex_sdk(probe), _claude_sdk(probe)] + [_redir(d, probe) for d in redir.DRIVERS.values()]
+
+
+def describe_cached():
+    """Describe runtimes using only already-known integration state."""
+    return describe(probe=False)
 
 
 def get(runtime_id):

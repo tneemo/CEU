@@ -1,11 +1,12 @@
 // CEU Agent: sidebar section, activity panel (approvals, tasks, notes, access),
 // the create/edit dialog and the agent thread's intro. See docs/referencias-agent.md.
 import { useEffect, useRef, useState } from "react";
-import { api, type Agent, type AgentAction, type AgentApproval, type AgentDecision, type AgentDetail, type AgentEvent, type AgentNote, type AgentTask, type Schedule } from "../api";
+import { api, type Agent, type AgentAction, type AgentApproval, type AgentCall, type AgentDecision, type AgentDetail, type AgentEvent, type AgentIssue, type AgentNote, type AgentTask, type Schedule } from "../api";
 import { Ic, Icon } from "../lib/icons";
 import { autosize, cx, relTime } from "../lib/util";
 import {
   addNote,
+  answerExecutor,
   answerParked,
   createTask,
   describeSchedule,
@@ -21,6 +22,7 @@ import {
   runTask,
   saveAgent,
   setAgentPaused,
+  setIssue,
   setTaskPaused,
   TASK_STATUS,
   taskGroup,
@@ -165,24 +167,166 @@ function BlockedRow({ t }: { t: AgentTask }) {
 
 function ApprovalRow({ a, agent }: { a: AgentApproval; agent: Agent }) {
   const r = a.request;
-  const what = r.summary && r.kind === "agent" ? r.summary : r.kind === "command" ? r.input.command : `Editar ${r.preview?.path || r.input.path}`;
+  const what = r.summary && (r.kind === "agent" || r.kind === "git_write" || r.kind === "github_publish") ? r.summary : r.kind === "command" ? r.input.command : `Editar ${r.preview?.path || r.input.path}`;
+  // an executor's card blocks its turn: answered on that turn, not parked like the agent's own
+  const answer = (decision: "allow" | "deny") => (a.kind === "executor" ? answerExecutor(a, decision) : answerParked(a.id, a.conversation_id, decision));
   return (
     <div className="agp-appr">
       <button type="button" className="agp-appr-what" onClick={() => openConversation(a.conversation_id)} data-tip="Abrir onde foi pedido">
         <span className="w">{what}</span>
         <span className="where">
-          {a.conversation_id === agent.conversation_id ? "Conversa principal" : a.where} · {relTime(a.created_at)}
+          {a.kind === "executor" ? `Executor ${a.where}` : a.conversation_id === agent.conversation_id ? "Conversa principal" : a.where} · {relTime(a.created_at)}
         </span>
       </button>
       <div className="agp-appr-act">
-        <button type="button" className="btn primary" onClick={() => answerParked(a.id, a.conversation_id, "allow")}>
+        <button type="button" className="btn primary" onClick={() => answer("allow")}>
           Permitir
         </button>
-        <button type="button" className="btn ghost" onClick={() => answerParked(a.id, a.conversation_id, "deny")}>
+        <button type="button" className="btn ghost" onClick={() => answer("deny")}>
           Negar
         </button>
       </div>
     </div>
+  );
+}
+
+// ------------------------------------------------------------------ an objective: issues and executors
+
+const KIND_TEXT: Record<AgentIssue["kind"], string> = {
+  problem: "Problema",
+  hypothesis: "Hipótese",
+  contradiction: "Contradição",
+  question: "Pergunta",
+  lead: "Pista",
+  finding: "Achado",
+};
+const ISSUE_STATUS: Record<AgentIssue["status"], string> = { open: "aberta", noted: "registrado", resolved: "resolvida", discarded: "descartada" };
+const ROLE_TEXT: Record<AgentCall["role"], string> = { investigate: "Investigação", implement: "Implementação", review: "Revisão" };
+
+/** One of the objective's issues: who raised it, where it stands, and the user's hand on it. */
+function IssueRow({ i }: { i: AgentIssue }) {
+  const [closing, setClosing] = useState<null | "resolved" | "discarded">(null);
+  const ref = useRef<HTMLInputElement>(null);
+  const open = i.status === "open";
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const v = ref.current?.value.trim() || "";
+    if (v && closing && (await setIssue(i, closing, v))) setClosing(null);
+  };
+  const menu = (anchor: HTMLElement) =>
+    openMenu({
+      anchor,
+      placement: "bottom-end",
+      items: open
+        ? [
+            { label: "Marcar como resolvida…", icon: "check", onSelect: () => setClosing("resolved") },
+            { label: "Descartar…", icon: "close", onSelect: () => setClosing("discarded") },
+          ]
+        : [{ label: "Reabrir", icon: "retry", onSelect: () => setIssue(i, "open") }],
+    });
+  return (
+    <div className={cx("issue-row", "k-" + i.kind, "is-" + i.status)}>
+      <div className="issue-main">
+        <span className={cx("issue-glyph", "k-" + i.kind)} aria-hidden="true" />
+        <div className="task-txt">
+          <span className="t">
+            <span className="issue-kind">{KIND_TEXT[i.kind]}</span>
+            {i.title}
+          </span>
+          {i.detail && open && <span className="r">{oneLine(i.detail, 240)}</span>}
+          <span className="m">
+            {i.raised_by} · {relTime(i.created_at)}
+            {!open && i.status !== "noted" && ` · ${ISSUE_STATUS[i.status]}${i.closed_by ? ` por ${i.closed_by}` : ""}`}
+          </span>
+          {i.resolution && <span className="r">{oneLine(i.resolution, 240)}</span>}
+        </div>
+        {i.kind !== "finding" && (
+          <button type="button" className="icon-btn task-more" aria-label="Opções da questão" onClick={(e) => menu(e.currentTarget)}>
+            <Icon name="more" />
+          </button>
+        )}
+      </div>
+      {closing && (
+        <form className="issue-close" onSubmit={save} onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), setClosing(null))}>
+          <input ref={ref} className="input" autoFocus placeholder={closing === "resolved" ? "Como foi resolvida?" : "Por que descartar?"} maxLength={4000} />
+          <button type="submit" className="btn primary">
+            {closing === "resolved" ? "Resolver" : "Descartar"}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function callMeta(c: AgentCall) {
+  if (c.status === "running") return "Trabalhando agora";
+  const when = relTime(c.finished_at || c.created_at);
+  if (c.status === "error") return `Falhou ${when}`;
+  if (c.status === "stopped") return `Interrompida ${when}`;
+  if (c.role === "review") return (c.verdict === "approved" ? "Aprovou" : c.verdict === "changes" ? "Pediu mudanças" : "Sem veredito") + ` ${when}`;
+  return `Terminou ${when}`;
+}
+
+/** Work the agent asked of an executor; opens the executor's Code session. */
+function CallRow({ c }: { c: AgentCall }) {
+  const glyph = c.status === "complete" ? (c.role === "review" && c.verdict !== "approved" ? "blocked" : "done") : c.status;
+  return (
+    <div className={cx("task-row", "call-row", "st-" + glyph)}>
+      <button type="button" className="task-main" disabled={!c.conversation_id} onClick={() => c.conversation_id && openConversation(c.conversation_id)} data-tip="Abrir a sessão do executor">
+        <span className={"task-glyph st-" + glyph} aria-hidden="true" />
+        <span className="task-txt">
+          <span className="t">
+            {ROLE_TEXT[c.role]}
+            <span className="dim">· {c.label}</span>
+          </span>
+          <span className="m">{callMeta(c)}</span>
+          <span className="r">{oneLine(c.request)}</span>
+        </span>
+      </button>
+    </div>
+  );
+}
+
+/** The objective a task thread is about: its open issues first, then who has worked on it. */
+function ObjectiveSections({ task, issues, calls }: { task: AgentTask; issues: AgentIssue[]; calls: AgentCall[] }) {
+  const open = issues.filter((i) => i.status === "open");
+  const rest = [...issues.filter((i) => i.status !== "open")].sort((a, b) => b.updated_at - a.updated_at);
+  const [folded, setFolded] = useState(true);
+  const running = calls.filter((c) => c.status === "running").length;
+  return (
+    <>
+      <Section title="Questões" count={open.length}>
+        {open.map((i) => (
+          <IssueRow key={i.id} i={i} />
+        ))}
+        {!open.length && (
+          <p className="agp-empty">
+            {issues.length
+              ? task.status === "done"
+                ? "Nenhuma em aberto: o objetivo foi concluído."
+                : "Nenhuma em aberto."
+              : "Problemas, hipóteses, contradições e pistas que o trabalho levantar aparecem aqui. Com alguma aberta, a tarefa não é dada como concluída."}
+          </p>
+        )}
+        {rest.length > 0 && (
+          <div className="work-group">
+            <button type="button" className="work-group-h" aria-expanded={!folded} onClick={() => setFolded(!folded)}>
+              <Icon name={folded ? "chevron-right" : "chevron-down"} />
+              <span>Fechadas e achados</span>
+              <span className="n">{rest.length}</span>
+            </button>
+            {!folded && rest.map((i) => <IssueRow key={i.id} i={i} />)}
+          </div>
+        )}
+      </Section>
+      {calls.length > 0 && (
+        <Section title="Executores" count={running || undefined}>
+          {[...calls].reverse().map((c) => (
+            <CallRow key={c.id} c={c} />
+          ))}
+        </Section>
+      )}
+    </>
   );
 }
 
@@ -204,6 +348,7 @@ function taskMeta(t: AgentTask) {
 
 function TaskRow({ t }: { t: AgentTask }) {
   const current = useApp((s) => s.current?.conv.id === t.conversation_id);
+  const openIssues = useApp((s) => (s.agentDetail?.issues || []).filter((i) => i.task_id === t.id && i.status === "open").length);
   const busy = t.status === "running" || t.status === "waiting";
   const group = taskGroup(t);
   // in-progress work shows where it stands; the rest, what the last run produced
@@ -236,7 +381,10 @@ function TaskRow({ t }: { t: AgentTask }) {
             {t.title}
             {t.kind === "research" && <span className="tag">proativa</span>}
           </span>
-          <span className="m">{taskMeta(t)}</span>
+          <span className="m">
+            {taskMeta(t)}
+            {openIssues > 0 && t.status !== "done" && <span className="issues-n"> · {openIssues === 1 ? "1 questão aberta" : `${openIssues} questões abertas`}</span>}
+          </span>
           {line && <span className="r">{oneLine(line)}</span>}
         </span>
       </button>
@@ -390,10 +538,12 @@ function NoteAdd({ agentId, onDone }: { agentId: string; onDone: () => void }) {
 }
 
 const DECISION_TEXT: Record<AgentDecision, string> = { allow: "livre", ask: "pergunta", block: "bloqueado" };
+/** Actions that only exist with a folder of the user's computer granted (executors work there too). */
+const needsFolder = (a: AgentAction) => a.startsWith("host_") || a === "delegate";
 
 function AccessSummary({ d }: { d: AgentDetail }) {
   const folder = d.agent.host_folder;
-  const shown = d.actions.filter((x) => folder || !x.id.startsWith("host_"));
+  const shown = d.actions.filter((x) => folder || !needsFolder(x.id));
   return (
     <div className="agp-access">
       {shown.map((x) => (
@@ -487,8 +637,9 @@ export function AgentPanel() {
   const [addingTask, setAddingTask] = useState(false);
   const [addingNote, setAddingNote] = useState(false);
   if (!d || d.agent.id !== conv?.agent_id) return <aside className="agent-panel is-loading" aria-hidden="true" />;
-  const { agent, tasks, notes, approvals, activity = [] } = d;
+  const { agent, tasks, notes, approvals, activity = [], issues = [], calls = [] } = d;
   const blocked = tasks.filter((t) => t.status === "blocked");
+  const here = conv?.kind === "agent_task" ? tasks.find((t) => t.conversation_id === conv.id) : undefined;
   const waiting = approvals.length + blocked.length;
   const status = agent.paused ? "Pausado: nada roda sozinho" : agent.running ? (agent.running === 1 ? "1 trabalho rodando" : `${agent.running} trabalhos rodando`) : "Disponível";
   return (
@@ -521,6 +672,9 @@ export function AgentPanel() {
               <BlockedRow key={t.id} t={t} />
             ))}
           </Section>
+        )}
+        {here && here.kind !== "research" && (
+          <ObjectiveSections task={here} issues={issues.filter((i) => i.task_id === here.id)} calls={calls.filter((c) => c.task_id === here.id)} />
         )}
         <Section
           title="Trabalho"
@@ -631,11 +785,12 @@ const ACTION_HINTS: Record<AgentAction, string> = {
   host_git_read: "status, diff, log e consulta da conta/repositório",
   host_git_write: "init, add, commit, branches, tags e remotes locais",
   host_github_publish: "criar repositório, push, release e anexos",
+  delegate: "investigação, implementação e revisão por outros modelos, com estas mesmas permissões",
 };
 
 const ACTION_DEFAULTS: Record<AgentAction, AgentDecision> = {
   web: "allow", computer: "allow", tasks: "ask", host_read: "allow", host_edit: "ask", host_command: "ask",
-  host_git_read: "allow", host_git_write: "ask", host_github_publish: "ask",
+  host_git_read: "allow", host_git_write: "ask", host_github_publish: "ask", delegate: "allow",
 };
 const ACTION_LABELS: Record<AgentAction, string> = {
   web: "Pesquisar e abrir páginas na web",
@@ -647,6 +802,7 @@ const ACTION_LABELS: Record<AgentAction, string> = {
   host_git_read: "Consultar Git e GitHub",
   host_git_write: "Alterar o Git local",
   host_github_publish: "Publicar no GitHub",
+  delegate: "Pedir trabalho a outros modelos",
 };
 
 export function AgentDialog({ id, agentId }: { id: number; agentId: string | null }) {
@@ -704,13 +860,13 @@ export function AgentDialog({ id, agentId }: { id: number; agentId: string | nul
       toast(err.message);
     }
   };
-  const actions = (Object.keys(ACTION_LABELS) as AgentAction[]).filter((a) => folder || !a.startsWith("host_"));
+  const actions = (Object.keys(ACTION_LABELS) as AgentAction[]).filter((a) => folder || !needsFolder(a));
 
   return (
     <DialogShell id={id} className="agent-dialog" label={agentId ? "Editar agente" : "Novo agente"}>
       <form onSubmit={submit} className={cx("agent-form", !loaded && "is-loading")}>
         <h3>{agentId ? "Editar agente" : "Novo agente"}</h3>
-        <p className="lead">Um agente guarda o que aprende em notas, tem um computador próprio (Linux isolado) e leva trabalhos adiante em segundo plano, retomando de onde parou, enquanto o CEU estiver aberto.</p>
+        <p className="lead">Um agente assume objetivos e os leva adiante em segundo plano, retomando de onde parou, enquanto o CEU estiver aberto. Guarda o que aprende em notas, tem um computador próprio (Linux isolado) e, com uma pasta concedida, pode pedir investigação, implementação e revisão a outros modelos.</p>
         <label className="af-field">
           <span>Nome</span>
           <input className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="Ex.: Pesquisador, Operações, Atlas" />
@@ -788,7 +944,7 @@ export function AgentDialog({ id, agentId }: { id: number; agentId: string | nul
               </div>
             ))}
           </div>
-          <p className="af-note">“Perguntar” pausa o trabalho até você responder, no painel do agente ou na conversa. A pesquisa proativa só lê e anota, qualquer que seja a regra.</p>
+          <p className="af-note">“Perguntar” pausa o trabalho até você responder, no painel do agente ou na conversa. Os modelos que trabalham para o agente seguem estas mesmas regras. A pesquisa proativa só lê e anota, qualquer que seja a regra.</p>
         </div>
         <div className="row">
           <button type="button" className="btn ghost" onClick={close}>

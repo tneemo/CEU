@@ -182,6 +182,32 @@
 .task-glyph.st-paused { border-style: dashed; }
 .task-glyph.st-idle { border-color: var(--ink-3); }
 
+/* an objective's issues: the same diamond, its stroke says what kind of uncertainty it is */
+.issue-row { border-radius: 10px; transition: background var(--t-fast); }
+.issue-row:hover { background: var(--plane-3); }
+.issue-main { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0 8px 8px; }
+.issue-main .task-txt { flex: 1; }
+.issue-main .task-txt .t { display: block; line-height: 1.4; word-break: break-word; }
+.issue-row:hover .task-more { opacity: 1; }
+.issue-kind { margin-right: 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.issue-glyph { flex: none; width: 9px; height: 9px; margin-top: 5px; transform: rotate(45deg); border-radius: 2px; border: 1.25px solid var(--ink-3); }
+.issue-glyph.k-problem { border-color: var(--danger); background: var(--danger-2); }
+.issue-glyph.k-contradiction { border-color: var(--accent); background: linear-gradient(135deg, var(--accent) 50%, transparent 50%); }
+.issue-glyph.k-question { border-color: var(--accent); }
+.issue-glyph.k-hypothesis, .issue-glyph.k-lead { border-style: dashed; }
+.issue-glyph.k-finding { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 40%, transparent); }
+.issue-row.k-problem.is-open .issue-kind { color: var(--danger); }
+.issue-row.k-contradiction.is-open .issue-kind, .issue-row.k-question.is-open .issue-kind { color: var(--accent); }
+.issue-row.is-resolved .issue-glyph, .issue-row.is-discarded .issue-glyph { border-color: var(--ink-4); background: none; }
+.issue-row.is-resolved .task-txt .t, .issue-row.is-discarded .task-txt .t { color: var(--ink-3); }
+.issue-row.is-discarded .task-txt .t { text-decoration: line-through; text-decoration-color: var(--ink-4); }
+.issue-close { display: flex; gap: 6px; padding: 0 6px 8px 27px; animation: plane-in var(--t) var(--ease-depth); }
+.issue-close .input { flex: 1; min-width: 0; height: 28px; font-size: 12.5px; }
+.issue-close .btn { height: 28px; padding: 0 10px; font-size: 12.5px; }
+.task-txt .m .issues-n { color: var(--accent); }
+.call-row .task-txt .t .dim { color: var(--ink-3); }
+.call-row .task-main:disabled { cursor: default; }
+
 .agp-form { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 10px; padding: 10px; border-radius: 12px; background: var(--plane-2); border: 1px solid var(--line-2); animation: plane-in var(--t) var(--ease-depth); }
 .agp-form .input { width: 100%; }
 .agp-form .textarea { min-height: 64px; font-size: 13px; }

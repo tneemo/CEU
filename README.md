@@ -12,6 +12,7 @@ O projeto está em Release Candidate. A versão `v0.2.0-rc.1` reúne a base func
 - Rooms, que conduzem uma sequência de participantes em várias rodadas.
 - Code em uma pasta local, com leitura, busca, edição, comandos, aprovações, desfazer por turno e steering.
 - Agent persistente, com notas, tarefas agendadas, aprovações estacionadas e recuperação após reinício.
+- Objetivos conduzidos por um agente com outros modelos: investigação, implementação e revisão independente por executores, questões em aberto compartilhadas e conclusão só depois de uma revisão aprovada do conteúdo atual (veja [docs/coordenacao.md](docs/coordenacao.md)).
 - Runtimes opcionais para Codex CLI, Claude Agent SDK e outros CLIs supervisionados pelo CEU.
 - Aplicação desktop Tauri e frontend React/Vite, além do frontend web estático servido diretamente pelo backend.
 
@@ -79,6 +80,7 @@ Na raiz:
 .venv\Scripts\python -m compileall -q server scripts
 .venv\Scripts\python scripts\verify_recovery.py --real-db
 .venv\Scripts\python scripts\test_calls.py
+.venv\Scripts\python scripts\test_coordination.py
 .venv\Scripts\python scripts\test_git_tools.py
 ```
 
@@ -137,6 +139,7 @@ server/                 backend Python, API HTTP, SSE e SQLite
   github.py             cliente REST e cofre seguro de credenciais
   agent_mode.py         agentes, tarefas e aprovações
   calls.py              autoria e projeção de participantes
+  coordination.py       executores, questões e conclusão verificada de um objetivo
   delegate.py           delegação para Code e Agent
   rooms.py              condução de sequências de modelos
 web/                    frontend original sem build

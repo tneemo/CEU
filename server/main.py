@@ -12,8 +12,8 @@ import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import (agent_mode, agent_tools, calls, code_runtimes, code_tools, codex_bridge, db, delegate, generation,
-               github, integrations, providers, rooms, suggestions)
+from . import (agent_mode, agent_tools, calls, code_runtimes, code_tools, codex_bridge, coordination, db, delegate,
+               generation, github, integrations, providers, rooms, suggestions)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, "web")
@@ -1014,7 +1014,7 @@ def api_agent(h, m):
 def _call_summary(c):
     return {k: c[k] for k in ("id", "task_id", "role", "runtime", "model", "label", "request", "conversation_id",
                               "message_id", "status", "verdict", "created_at", "finished_at")} | {
-        "result": (c["result"] or "")[:600], "reviewed_current": None}
+        "result": (c["result"] or "")[:600]}
 
 
 @route("PATCH", r"/api/issues/(\w+)")
@@ -1032,11 +1032,6 @@ def api_issue_update(h, m):
         raise HttpError(400, "Diga como a questão foi resolvida ou por que foi descartada.")
     issue = db.update_issue(m[1], {"status": status, "resolution": resolution or None,
                                    "closed_by": "você" if status != "open" else None})
-    if issue["task_id"]:
-        task = db.get_task(issue["task_id"])
-        if task:
-            agent_mode.log(task, "resumed" if status == "open" else "ran",
-                           f"Você {'reabriu' if status == 'open' else 'fechou'} a questão “{issue['title']}”.")
     _agent_event(issue["agent_id"])
     return issue
 

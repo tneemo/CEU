@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ApprovalRequest, Message, PermissionMode, RuntimeInfo, ToolCall, ToolResult } from "../api";
 import { Ic, Icon } from "../lib/icons";
 import { cx } from "../lib/util";
-import { answerApproval, undoTurn } from "../state/actions";
+import { answerApproval, openConversation, undoTurn } from "../state/actions";
 import { useApp, type ToolLive } from "../state/store";
 import { confirmDialog } from "../state/ui";
 import { Cube } from "./Thread";
@@ -92,6 +92,12 @@ interface Item {
 /** Agent threads use the code tools on a granted folder as host_*: same rendering. */
 const toolName = (name: string) => name.replace(/^host_/, "");
 
+// an agent's coordination tools (server/coordination.py)
+const ROLE_VERB: Record<string, string> = { investigate: "investigação", implement: "implementação", review: "revisão" };
+const KIND_WORD: Record<string, string> = {
+  problem: "problema", hypothesis: "hipótese", contradiction: "contradição", question: "pergunta", lead: "pista", finding: "achado",
+};
+
 function isEdit(name: string) {
   const n = toolName(name);
   return n === "edit_file" || n === "write_file";
@@ -119,6 +125,7 @@ function label(it: Item) {
     if (name === "web_search") return <>Pesquisar <code>{a.query}</code></>;
     if (name === "fetch_url") return <>Abrir <code>{host(a.url)}</code></>;
     if (name === "create_task") return <>Criar a tarefa <b>{a.title}</b></>;
+    if (name === "delegate") return <>Pedir {ROLE_VERB[a.role] || "trabalho"} a <b>{a.executor}</b></>;
     if (name === "save_note") return <>Anotar <span className="dim">“{(a.content || "").slice(0, 90)}”</span></>;
     if (name === "run_code") return <>Executar {a.language === "bash" ? "Bash" : "Python"}</>;
   }
@@ -139,6 +146,36 @@ function label(it: Item) {
       return <>Criou a tarefa <b>{a.title}</b></>;
     case "list_tasks":
       return <>Consultou as tarefas</>;
+    case "update_task": {
+      // declaring the task done may have run the final review (server/coordination.py settle)
+      const review = meta.executor ? (
+        <span className="dim">
+          {" "}
+          · revisão final por {meta.executor}: {meta.verdict === "approved" ? "aprovou" : meta.verdict === "changes" ? "pediu mudanças" : "sem veredito"}
+        </span>
+      ) : null;
+      if (a.state === "done" && result)
+        return result.is_error ? <>Ainda não pôde concluir{review || <span className="dim"> · {(result.output || "").replace(/^Ainda não dá para concluir: /, "").slice(0, 90)}</span>}</> : <>Concluiu a tarefa{review}</>;
+      return result?.is_error ? <>Tentou atualizar a tarefa<span className="dim"> · {(result.output || "").slice(0, 90)}</span></> : <>Atualizou a tarefa{a.state && <span className="dim"> · {a.state === "done" ? "concluir" : a.state === "blocked" ? "precisa de você" : "continuar"}</span>}</>;
+    }
+    case "raise_issue":
+      return <>Registrou {KIND_WORD[a.kind] || "questão"}: <span className="dim">“{(a.title || "").slice(0, 90)}”</span></>;
+    case "resolve_issue":
+      return <>{a.status === "discarded" ? "Descartou" : "Resolveu"} uma questão<span className="dim"> · {(a.resolution || "").slice(0, 90)}</span></>;
+    case "delegate": {
+      const role = ROLE_VERB[a.role] || "trabalho";
+      const verdict = meta.verdict === "approved" ? " · aprovou" : meta.verdict === "changes" ? " · pediu mudanças" : "";
+      const raised = (meta.issues || []).length;
+      return (
+        <>
+          {role.charAt(0).toUpperCase() + role.slice(1)} por <b>{meta.executor || a.executor}</b>
+          <span className="dim">
+            {verdict}
+            {raised ? ` · ${raised} ${raised === 1 ? "questão" : "questões"}` : ""}
+          </span>
+        </>
+      );
+    }
   }
   switch (name) {
     case "read_file":
@@ -177,6 +214,8 @@ function runningLabel(it: Item) {
     case "run_code": return "Executando código";
     case "save_note": return "Anotando";
     case "create_task": return `Criando a tarefa “${a.title}”`;
+    case "delegate": return `${a.executor} trabalhando (${ROLE_VERB[a.role] || "trabalho"})`;
+    case "update_task": return a.state === "done" ? "Conferindo antes de concluir" : "Atualizando a tarefa";
     default: return it.call.name;
   }
 }
@@ -186,6 +225,7 @@ const ICONS: Record<string, string> = {
   edit_file: "edit", write_file: "edit", delete_file: "trash", run_command: "tools",
   web_search: "search", fetch_url: "external", run_code: "cube", list_files: "archive",
   save_note: "memory", delete_note: "memory", create_task: "new", list_tasks: "filter",
+  delegate: "user", raise_issue: "alert", resolve_issue: "check", update_task: "retry",
 };
 
 function OutputBox({ text, follow }: { text: string; follow: boolean }) {
@@ -223,6 +263,22 @@ function ItemBody({ it }: { it: Item }) {
             {meta.ms != null && ` · ${(meta.ms / 1000).toFixed(1)}s`}
           </div>
         ) : null}
+      </div>
+    );
+  }
+  if (call.name === "delegate" || (call.name === "update_task" && meta.conversation_id)) {
+    const out = result ? result.output : live?.output || "";
+    const session = meta.conversation_id;
+    return (
+      <div className="cmd">
+        {call.name === "delegate" && <div className="cmd-line">{call.input.request}</div>}
+        {out && <OutputBox text={out} follow={!result} />}
+        {session && (
+          <button type="button" className="btn ghost delegate-open" onClick={() => openConversation(session, { messageId: meta.message_id || null })}>
+            <Ic name="external" />
+            Abrir a sessão do executor
+          </button>
+        )}
       </div>
     );
   }
@@ -275,11 +331,19 @@ function summary(items: Item[]) {
   const code = named("run_code");
   const notes = named("save_note", "delete_note");
   const tasks = named("create_task");
+  const delegated = named("delegate");
+  const issues = named("raise_issue");
+  const closed = named("resolve_issue");
+  const finished = items.find((i) => toolName(i.call.name) === "update_task" && i.call.input.state === "done" && i.result && !i.result.is_error);
   if (web.length) parts.push(plural(web.length, "pesquisou na web", "fez # pesquisas na web"));
   if (pages.length) parts.push(pages.length === 1 ? `leu ${host(pages[0].call.input.url)}` : `leu ${pages.length} páginas`);
   if (code.length) parts.push(plural(code.length, "executou código", "executou código # vezes"));
   if (notes.length) parts.push(plural(notes.length, "atualizou 1 nota", "atualizou # notas"));
   if (tasks.length) parts.push(plural(tasks.length, "criou 1 tarefa", "criou # tarefas"));
+  if (delegated.length) parts.push(delegated.length === 1 ? `pediu ${ROLE_VERB[delegated[0].call.input.role] || "trabalho"} a ${delegated[0].call.input.executor}` : `fez ${delegated.length} pedidos a executores`);
+  if (issues.length) parts.push(plural(issues.length, "registrou 1 questão", "registrou # questões"));
+  if (closed.length) parts.push(plural(closed.length, "fechou 1 questão", "fechou # questões"));
+  if (finished) parts.push(finished.result!.meta.executor ? `concluiu após revisão de ${finished.result!.meta.executor}` : "concluiu a tarefa");
   if (reads.length) parts.push(reads.length === 1 ? `Leu ${base(reads[0].call.input.path)}` : `Leu ${reads.length} arquivos`);
   if (searches.length) parts.push(plural(searches.length, "fez 1 busca", "fez # buscas"));
   if (edits.length) {

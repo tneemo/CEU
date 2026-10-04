@@ -1,6 +1,6 @@
 // CEU Agent: client actions for agents, their tasks, notes and parked approvals
 // (server side in server/agent_mode.py; design in docs/referencias-agent.md).
-import { api, type Agent, type AgentFields, type AgentNote, type AgentTask, type Conversation, type Schedule, type ServerEvent } from "../api";
+import { api, type Agent, type AgentApproval, type AgentFields, type AgentIssue, type AgentNote, type AgentTask, type Conversation, type Schedule, type ServerEvent } from "../api";
 import { debounce } from "../lib/util";
 import { newChat, openConversation, reloadCurrent } from "./actions";
 import { focusComposer } from "./composer";
@@ -229,4 +229,28 @@ export async function answerParked(approvalId: string, conversationId: string, d
   if (S().current?.conv.id === conversationId) await reloadCurrent();
   loadAgentDetail();
   refreshAgentsSoon();
+}
+
+// ------------------------------------------------------------------ coordination (server/coordination.py)
+
+/** An executor's card from the agent's inbox: it blocks the executor's turn, so it's answered on that message. */
+export async function answerExecutor(a: AgentApproval, decision: "allow" | "always" | "deny") {
+  try {
+    await api.approve(a.message_id, { call_id: a.request.call_id, decision });
+  } catch (e: any) {
+    toast(e.message);
+  }
+  loadAgentDetail();
+  refreshAgentsSoon();
+}
+
+export async function setIssue(issue: AgentIssue, status: "open" | "resolved" | "discarded", resolution = "") {
+  try {
+    await api.updateIssue(issue.id, { status, resolution });
+  } catch (e: any) {
+    toast(e.message);
+    return false;
+  }
+  loadAgentDetail();
+  return true;
 }

@@ -184,6 +184,6 @@ A v1 tratava a tarefa como um prompt num relógio. Uma execução de uma vez ter
 - **Novos gatilhos**: um gatilho só precisa pôr `next_run_at` e um `outcome` `{"state": "continue", "why": "<gatilho>"}` e ganhar uma etiqueta em `WAKE_TEXT`. Uma pasta vigiada, um webhook ou um e-mail chegando entram assim, sem mexer no agendador.
 - **Atualizações no fio principal**: o diário já é a fonte. Falta decidir como mostrar um evento como mensagem do agente sem quebrar a alternância de papéis dos provedores.
 - **Revisor automático**: `blocked` e as aprovações já formam uma caixa de entrada única. Um revisor pode responder parte dela antes do usuário, no mesmo ponto descrito na seção 10.
-- **Delegação e subtarefas**: `parent_id` em `agent_tasks`, com o pai lendo o `progress` dos filhos pelo `list_tasks(id)` que já existe.
+- **Delegação e subtarefas**: `parent_id` em `agent_tasks`, com o pai lendo o `progress` dos filhos pelo `list_tasks(id)` que já existe. (Seguiu outro caminho em 03/10: o agente delega a executores com `delegate`, mantém questões e só conclui com revisão independente. Ver `docs/coordenacao.md`.)
 - **Compactação da conversa principal**: o diário e os `progress` já resumem o trabalho de fundo. O que falta é resumir o próprio fio principal quando ele passar do orçamento.
 - **Notificações do sistema** quando uma tarefa conclui ou pergunta, a partir dos eventos `agent` que o barramento já publica.
