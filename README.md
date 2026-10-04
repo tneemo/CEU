@@ -2,7 +2,7 @@
 
 CEU é uma aplicação local para conversar com modelos de linguagem e conduzir trabalho agentivo no computador do usuário. Ela combina Chat, Code e Agent em uma interface desktop/web em português (pt-BR), com dados e credenciais mantidos localmente.
 
-O projeto está em Release Candidate. A versão `v0.2.0-rc.1` reúne a base funcional existente e o fluxo de chamadas entre modelos, Code, Agent e Rooms. Algumas integrações dependem de ferramentas externas e continuam opcionais.
+O projeto está em Release Candidate. A versão `v0.2.0-rc.4` reúne a base funcional existente, coordenação de objetivos com executores e o fluxo de chamadas entre modelos, Code, Agent e Rooms. Algumas integrações dependem de ferramentas externas e continuam opcionais.
 
 ## O que já existe
 
