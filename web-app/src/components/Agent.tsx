@@ -1,3 +1,4 @@
+import { getLocale, tr, translateLabel, useLanguage } from "../lib/i18n";
 // CEU Agent: sidebar section, activity panel (approvals, tasks, notes, access),
 // the create/edit dialog and the agent thread's intro. See docs/referencias-agent.md.
 import { useEffect, useRef, useState } from "react";
@@ -41,12 +42,12 @@ function fmtWhen(ts: number | null) {
   if (!ts) return "";
   const d = new Date(ts * 1000);
   const now = new Date();
-  const hm = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const hm = d.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" });
   const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diff = Math.round((day(d) - day(now)) / 86400000);
-  if (diff === 0) return `hoje ${hm}`;
-  if (diff === 1) return `amanhã ${hm}`;
-  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + hm;
+  if (diff === 0) return tr("hoje {0}", hm);
+  if (diff === 1) return tr("amanhã {0}", hm);
+  return d.toLocaleDateString(getLocale(), { day: "2-digit", month: "2-digit" }) + " " + hm;
 }
 
 function oneLine(s: string | null | undefined, n = 140) {
@@ -56,30 +57,30 @@ function oneLine(s: string | null | undefined, n = 140) {
 
 export function agentMenuItems(a: Agent): MenuItem[] {
   return [
-    { label: "Editar agente", icon: "sliders", key: "e", onSelect: () => editAgent(a.id) },
-    { label: a.paused ? "Retomar agente" : "Pausar agente", icon: a.paused ? "retry" : "stop", key: "p", onSelect: () => setAgentPaused(a, !a.paused) },
+    { label: tr("Editar agente"), icon: "sliders", key: "e", onSelect: () => editAgent(a.id) },
+    { label: a.paused ? tr("Retomar agente") : tr("Pausar agente"), icon: a.paused ? "retry" : "stop", key: "p", onSelect: () => setAgentPaused(a, !a.paused) },
     "sep",
-    { label: "Excluir agente", icon: "trash", danger: true, key: "d", onSelect: () => removeAgent(a) },
+    { label: tr("Excluir agente"), icon: "trash", danger: true, key: "d", onSelect: () => removeAgent(a) },
   ];
 }
 
 // ------------------------------------------------------------------ sidebar
 
 export function AgentsSection() {
+  useLanguage();
   const agents = useApp((s) => s.agents);
   const activeAgent = useApp((s) => s.current?.conv.agent_id || null);
   return (
-    <div className="sb-agents" role="group" aria-label="Agentes">
+    <div className="sb-agents" role="group" aria-label={tr("Agentes")}>
       <div className="sb-list-head">
-        <span>Agentes</span>
-        <button type="button" className="icon-btn" aria-label="Novo agente" data-tip="Novo agente" onClick={newAgent}>
+        <span>{tr("Agentes")}</span>
+        <button type="button" className="icon-btn" aria-label={tr("Novo agente")} data-tip={tr("Novo agente")} onClick={newAgent}>
           <Icon name="new" />
         </button>
       </div>
       {!agents.length ? (
         <button type="button" className="sb-agent-empty" onClick={newAgent}>
-          Um agente trabalha por você em segundo plano, com memória e tarefas próprias.
-        </button>
+          {tr("Um agente trabalha por você em segundo plano, com memória e tarefas próprias.")}</button>
       ) : (
         <div className="sb-agent-list">
           {agents.map((a) => (
@@ -102,11 +103,11 @@ export function AgentsSection() {
               </span>
               <span className="t">{a.name}</span>
               {a.pending > 0 && (
-                <span className="agent-badge" data-tip={a.pending === 1 ? "1 item esperando você" : `${a.pending} itens esperando você`}>
+                <span className="agent-badge" data-tip={a.pending === 1 ? tr("1 item esperando você") : tr("{0} itens esperando você", a.pending)}>
                   {a.pending}
                 </span>
               )}
-              {a.paused && <span className="agent-paused">pausado</span>}
+              {a.paused && <span className="agent-paused">{tr("pausado")}</span>}
             </a>
           ))}
         </div>
@@ -118,6 +119,7 @@ export function AgentsSection() {
 // ------------------------------------------------------------------ panel
 
 function Section({ title, count, action, children, collapsed }: { title: string; count?: number; action?: React.ReactNode; children: React.ReactNode; collapsed?: boolean }) {
+  useLanguage();
   const [open, setOpen] = useState(!collapsed);
   return (
     <section className="agp-sec">
@@ -141,10 +143,11 @@ function Section({ title, count, action, children, collapsed }: { title: string;
 
 /** A task stopped on a question for the user (update_task blocked, or the continuation limit). */
 function BlockedRow({ t }: { t: AgentTask }) {
-  const question = t.outcome?.question || t.last_result || "A tarefa precisa de uma decisão sua.";
+  useLanguage();
+  const question = t.outcome?.question || t.last_result || tr("A tarefa precisa de uma decisão sua.");
   return (
     <div className="agp-appr is-question">
-      <button type="button" className="agp-appr-what" onClick={() => replyToTask(t)} data-tip="Abrir a tarefa">
+      <button type="button" className="agp-appr-what" onClick={() => replyToTask(t)} data-tip={tr("Abrir a tarefa")}>
         <span className="w">{oneLine(question, 280)}</span>
         <span className="where">
           {t.title} · {relTime(t.updated_at)}
@@ -152,39 +155,35 @@ function BlockedRow({ t }: { t: AgentTask }) {
       </button>
       <div className="agp-appr-act">
         <button type="button" className="btn primary" onClick={() => replyToTask(t)}>
-          Responder
-        </button>
+          {tr("Responder")}</button>
         <button type="button" className="btn ghost" onClick={() => runTask(t)}>
-          Continuar
-        </button>
+          {tr("Continuar")}</button>
         <button type="button" className="btn ghost" onClick={() => markTaskDone(t)}>
-          Encerrar
-        </button>
+          {tr("Encerrar")}</button>
       </div>
     </div>
   );
 }
 
 function ApprovalRow({ a, agent }: { a: AgentApproval; agent: Agent }) {
+  useLanguage();
   const r = a.request;
-  const what = r.summary && (r.kind === "agent" || r.kind === "git_write" || r.kind === "github_publish") ? r.summary : r.kind === "command" ? r.input.command : `Editar ${r.preview?.path || r.input.path}`;
+  const what = r.summary && (r.kind === "agent" || r.kind === "git_write" || r.kind === "github_publish") ? translateLabel(r.summary) : r.kind === "command" ? r.input.command : tr("Editar {0}", r.preview?.path || r.input.path);
   // an executor's card blocks its turn: answered on that turn, not parked like the agent's own
   const answer = (decision: "allow" | "deny") => (a.kind === "executor" ? answerExecutor(a, decision) : answerParked(a.id, a.conversation_id, decision));
   return (
     <div className="agp-appr">
-      <button type="button" className="agp-appr-what" onClick={() => openConversation(a.conversation_id)} data-tip="Abrir onde foi pedido">
+      <button type="button" className="agp-appr-what" onClick={() => openConversation(a.conversation_id)} data-tip={tr("Abrir onde foi pedido")}>
         <span className="w">{what}</span>
         <span className="where">
-          {a.kind === "executor" ? `Executor ${a.where}` : a.conversation_id === agent.conversation_id ? "Conversa principal" : a.where} · {relTime(a.created_at)}
+          {a.kind === "executor" ? tr("Executor {0}", a.where) : a.conversation_id === agent.conversation_id ? tr("Conversa principal") : a.where} · {relTime(a.created_at)}
         </span>
       </button>
       <div className="agp-appr-act">
         <button type="button" className="btn primary" onClick={() => answer("allow")}>
-          Permitir
-        </button>
+          {tr("Permitir")}</button>
         <button type="button" className="btn ghost" onClick={() => answer("deny")}>
-          Negar
-        </button>
+          {tr("Negar")}</button>
       </div>
     </div>
   );
@@ -192,19 +191,20 @@ function ApprovalRow({ a, agent }: { a: AgentApproval; agent: Agent }) {
 
 // ------------------------------------------------------------------ an objective: issues and executors
 
-const KIND_TEXT: Record<AgentIssue["kind"], string> = {
-  problem: "Problema",
-  hypothesis: "Hipótese",
-  contradiction: "Contradição",
-  question: "Pergunta",
-  lead: "Pista",
-  finding: "Achado",
-};
-const ISSUE_STATUS: Record<AgentIssue["status"], string> = { open: "aberta", noted: "registrado", resolved: "resolvida", discarded: "descartada" };
-const ROLE_TEXT: Record<AgentCall["role"], string> = { investigate: "Investigação", implement: "Implementação", review: "Revisão" };
+const KIND_TEXT = (): Record<AgentIssue["kind"], string> => ({
+  problem: tr("Problema"),
+  hypothesis: tr("Hipótese"),
+  contradiction: tr("Contradição"),
+  question: tr("Pergunta"),
+  lead: tr("Pista"),
+  finding: tr("Achado"),
+});
+const ISSUE_STATUS = (): Record<AgentIssue["status"], string> => ({ open: tr("aberta"), noted: tr("registrado"), resolved: tr("resolvida"), discarded: tr("descartada") });
+const ROLE_TEXT = (): Record<AgentCall["role"], string> => ({ investigate: tr("Investigação"), implement: tr("Implementação"), review: tr("Revisão") });
 
 /** One of the objective's issues: who raised it, where it stands, and the user's hand on it. */
 function IssueRow({ i }: { i: AgentIssue }) {
+  useLanguage();
   const [closing, setClosing] = useState<null | "resolved" | "discarded">(null);
   const ref = useRef<HTMLInputElement>(null);
   const open = i.status === "open";
@@ -219,10 +219,10 @@ function IssueRow({ i }: { i: AgentIssue }) {
       placement: "bottom-end",
       items: open
         ? [
-            { label: "Marcar como resolvida…", icon: "check", onSelect: () => setClosing("resolved") },
-            { label: "Descartar…", icon: "close", onSelect: () => setClosing("discarded") },
+            { label: tr("Marcar como resolvida…"), icon: "check", onSelect: () => setClosing("resolved") },
+            { label: tr("Descartar…"), icon: "close", onSelect: () => setClosing("discarded") },
           ]
-        : [{ label: "Reabrir", icon: "retry", onSelect: () => setIssue(i, "open") }],
+        : [{ label: tr("Reabrir"), icon: "retry", onSelect: () => setIssue(i, "open") }],
     });
   return (
     <div className={cx("issue-row", "k-" + i.kind, "is-" + i.status)}>
@@ -230,27 +230,27 @@ function IssueRow({ i }: { i: AgentIssue }) {
         <span className={cx("issue-glyph", "k-" + i.kind)} aria-hidden="true" />
         <div className="task-txt">
           <span className="t">
-            <span className="issue-kind">{KIND_TEXT[i.kind]}</span>
+            <span className="issue-kind">{KIND_TEXT()[i.kind]}</span>
             {i.title}
           </span>
           {i.detail && open && <span className="r">{oneLine(i.detail, 240)}</span>}
           <span className="m">
             {i.raised_by} · {relTime(i.created_at)}
-            {!open && i.status !== "noted" && ` · ${ISSUE_STATUS[i.status]}${i.closed_by ? ` por ${i.closed_by}` : ""}`}
+            {!open && i.status !== "noted" && ` · ${ISSUE_STATUS()[i.status]}${i.closed_by ? tr(" por {0}", i.closed_by) : ""}`}
           </span>
           {i.resolution && <span className="r">{oneLine(i.resolution, 240)}</span>}
         </div>
         {i.kind !== "finding" && (
-          <button type="button" className="icon-btn task-more" aria-label="Opções da questão" onClick={(e) => menu(e.currentTarget)}>
+          <button type="button" className="icon-btn task-more" aria-label={tr("Opções da questão")} onClick={(e) => menu(e.currentTarget)}>
             <Icon name="more" />
           </button>
         )}
       </div>
       {closing && (
         <form className="issue-close" onSubmit={save} onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), setClosing(null))}>
-          <input ref={ref} className="input" autoFocus placeholder={closing === "resolved" ? "Como foi resolvida?" : "Por que descartar?"} maxLength={4000} />
+          <input ref={ref} className="input" autoFocus placeholder={closing === "resolved" ? tr("Como foi resolvida?") : tr("Por que descartar?")} maxLength={4000} />
           <button type="submit" className="btn primary">
-            {closing === "resolved" ? "Resolver" : "Descartar"}
+            {closing === "resolved" ? tr("Resolver") : tr("Descartar")}
           </button>
         </form>
       )}
@@ -259,24 +259,25 @@ function IssueRow({ i }: { i: AgentIssue }) {
 }
 
 function callMeta(c: AgentCall) {
-  if (c.status === "running") return "Trabalhando agora";
+  if (c.status === "running") return tr("Trabalhando agora");
   const when = relTime(c.finished_at || c.created_at);
-  if (c.status === "error") return `Falhou ${when}`;
-  if (c.status === "stopped") return `Interrompida ${when}`;
-  if (c.role === "review") return (c.verdict === "approved" ? "Aprovou" : c.verdict === "changes" ? "Pediu mudanças" : "Sem veredito") + ` ${when}`;
-  return `Terminou ${when}`;
+  if (c.status === "error") return tr("Falhou {0}", when);
+  if (c.status === "stopped") return tr("Interrompida {0}", when);
+  if (c.role === "review") return (c.verdict === "approved" ? tr("Aprovou") : c.verdict === "changes" ? tr("Pediu mudanças") : tr("Sem veredito")) + ` ${when}`;
+  return tr("Terminou {0}", when);
 }
 
 /** Work the agent asked of an executor; opens the executor's Code session. */
 function CallRow({ c }: { c: AgentCall }) {
+  useLanguage();
   const glyph = c.status === "complete" ? (c.role === "review" && c.verdict !== "approved" ? "blocked" : "done") : c.status;
   return (
     <div className={cx("task-row", "call-row", "st-" + glyph)}>
-      <button type="button" className="task-main" disabled={!c.conversation_id} onClick={() => c.conversation_id && openConversation(c.conversation_id)} data-tip="Abrir a sessão do executor">
+      <button type="button" className="task-main" disabled={!c.conversation_id} onClick={() => c.conversation_id && openConversation(c.conversation_id)} data-tip={tr("Abrir a sessão do executor")}>
         <span className={"task-glyph st-" + glyph} aria-hidden="true" />
         <span className="task-txt">
           <span className="t">
-            {ROLE_TEXT[c.role]}
+            {ROLE_TEXT()[c.role]}
             <span className="dim">· {c.label}</span>
           </span>
           <span className="m">{callMeta(c)}</span>
@@ -289,13 +290,14 @@ function CallRow({ c }: { c: AgentCall }) {
 
 /** The objective a task thread is about: its open issues first, then who has worked on it. */
 function ObjectiveSections({ task, issues, calls }: { task: AgentTask; issues: AgentIssue[]; calls: AgentCall[] }) {
+  useLanguage();
   const open = issues.filter((i) => i.status === "open");
   const rest = [...issues.filter((i) => i.status !== "open")].sort((a, b) => b.updated_at - a.updated_at);
   const [folded, setFolded] = useState(true);
   const running = calls.filter((c) => c.status === "running").length;
   return (
     <>
-      <Section title="Questões" count={open.length}>
+      <Section title={tr("Questões")} count={open.length}>
         {open.map((i) => (
           <IssueRow key={i.id} i={i} />
         ))}
@@ -303,16 +305,16 @@ function ObjectiveSections({ task, issues, calls }: { task: AgentTask; issues: A
           <p className="agp-empty">
             {issues.length
               ? task.status === "done"
-                ? "Nenhuma em aberto: o objetivo foi concluído."
-                : "Nenhuma em aberto."
-              : "Problemas, hipóteses, contradições e pistas que o trabalho levantar aparecem aqui. Com alguma aberta, a tarefa não é dada como concluída."}
+                ? tr("Nenhuma em aberto: o objetivo foi concluído.")
+                : tr("Nenhuma em aberto.")
+              : tr("Problemas, hipóteses, contradições e pistas que o trabalho levantar aparecem aqui. Com alguma aberta, a tarefa não é dada como concluída.")}
           </p>
         )}
         {rest.length > 0 && (
           <div className="work-group">
             <button type="button" className="work-group-h" aria-expanded={!folded} onClick={() => setFolded(!folded)}>
               <Icon name={folded ? "chevron-right" : "chevron-down"} />
-              <span>Fechadas e achados</span>
+              <span>{tr("Fechadas e achados")}</span>
               <span className="n">{rest.length}</span>
             </button>
             {!folded && rest.map((i) => <IssueRow key={i.id} i={i} />)}
@@ -320,7 +322,7 @@ function ObjectiveSections({ task, issues, calls }: { task: AgentTask; issues: A
         )}
       </Section>
       {calls.length > 0 && (
-        <Section title="Executores" count={running || undefined}>
+        <Section title={tr("Executores")} count={running || undefined}>
           {[...calls].reverse().map((c) => (
             <CallRow key={c.id} c={c} />
           ))}
@@ -331,22 +333,24 @@ function ObjectiveSections({ task, issues, calls }: { task: AgentTask; issues: A
 }
 
 function TaskGlyph({ t }: { t: AgentTask }) {
+  useLanguage();
   return <span className={"task-glyph st-" + t.status} aria-hidden="true" />;
 }
 
 function taskMeta(t: AgentTask) {
-  if (t.status === "running") return "Rodando agora";
-  if (t.status === "waiting") return "Esperando sua aprovação";
-  if (t.status === "blocked") return "Precisa de você";
-  if (t.status === "paused") return "Pausada";
-  if (t.status === "done") return `Concluída ${relTime(t.updated_at)}`;
+  if (t.status === "running") return tr("Rodando agora");
+  if (t.status === "waiting") return tr("Esperando sua aprovação");
+  if (t.status === "blocked") return tr("Precisa de você");
+  if (t.status === "paused") return tr("Pausada");
+  if (t.status === "done") return tr("Concluída {0}", relTime(t.updated_at));
   // a wake-up the task set for itself, or the next slot of its schedule
-  if (t.next_run_at && t.outcome?.state === "continue") return `Continua ${fmtWhen(t.next_run_at)}`;
-  if (t.next_run_at) return `${describeSchedule(t.schedule)} · próxima ${fmtWhen(t.next_run_at)}`;
-  return `${describeSchedule(t.schedule)}${t.last_run_at ? ` · ${TASK_STATUS[t.status].toLowerCase()} ${relTime(t.last_run_at)}` : ""}`;
+  if (t.next_run_at && t.outcome?.state === "continue") return tr("Continua {0}", fmtWhen(t.next_run_at));
+  if (t.next_run_at) return tr("{0} · próxima {1}", describeSchedule(t.schedule), fmtWhen(t.next_run_at));
+  return `${describeSchedule(t.schedule)}${t.last_run_at ? ` · ${TASK_STATUS()[t.status].toLowerCase()} ${relTime(t.last_run_at)}` : ""}`;
 }
 
 function TaskRow({ t }: { t: AgentTask }) {
+  useLanguage();
   const current = useApp((s) => s.current?.conv.id === t.conversation_id);
   const openIssues = useApp((s) => (s.agentDetail?.issues || []).filter((i) => i.task_id === t.id && i.status === "open").length);
   const busy = t.status === "running" || t.status === "waiting";
@@ -359,17 +363,17 @@ function TaskRow({ t }: { t: AgentTask }) {
       placement: "bottom-end",
       items: [
         {
-          label: t.status === "done" ? "Executar de novo" : group === "active" && t.runs ? "Continuar agora" : "Executar agora",
+          label: t.status === "done" ? tr("Executar de novo") : group === "active" && t.runs ? tr("Continuar agora") : tr("Executar agora"),
           icon: "retry",
           disabled: busy,
           onSelect: () => runTask(t),
         },
         t.status === "paused"
-          ? { label: "Retomar", icon: "retry", onSelect: () => setTaskPaused(t, false) }
-          : { label: "Pausar", icon: "stop", disabled: !t.schedule && !t.next_run_at, onSelect: () => setTaskPaused(t, true) },
-        t.status !== "done" && t.kind !== "research" && { label: "Marcar como concluída", icon: "check", disabled: busy, onSelect: () => markTaskDone(t) },
+          ? { label: tr("Retomar"), icon: "retry", onSelect: () => setTaskPaused(t, false) }
+          : { label: tr("Pausar"), icon: "stop", disabled: !t.schedule && !t.next_run_at, onSelect: () => setTaskPaused(t, true) },
+        t.status !== "done" && t.kind !== "research" && { label: tr("Marcar como concluída"), icon: "check", disabled: busy, onSelect: () => markTaskDone(t) },
         "sep",
-        { label: "Excluir tarefa", icon: "trash", danger: true, onSelect: () => removeTask(t) },
+        { label: tr("Excluir tarefa"), icon: "trash", danger: true, onSelect: () => removeTask(t) },
       ],
     });
   return (
@@ -379,16 +383,16 @@ function TaskRow({ t }: { t: AgentTask }) {
         <span className="task-txt">
           <span className="t">
             {t.title}
-            {t.kind === "research" && <span className="tag">proativa</span>}
+            {t.kind === "research" && <span className="tag">{tr("proativa")}</span>}
           </span>
           <span className="m">
             {taskMeta(t)}
-            {openIssues > 0 && t.status !== "done" && <span className="issues-n"> · {openIssues === 1 ? "1 questão aberta" : `${openIssues} questões abertas`}</span>}
+            {openIssues > 0 && t.status !== "done" && <span className="issues-n"> · {openIssues === 1 ? tr("1 questão aberta") : tr("{0} questões abertas", openIssues)}</span>}
           </span>
           {line && <span className="r">{oneLine(line)}</span>}
         </span>
       </button>
-      <button type="button" className="icon-btn task-more" aria-label="Opções da tarefa" onClick={(e) => menu(e.currentTarget)}>
+      <button type="button" className="icon-btn task-more" aria-label={tr("Opções da tarefa")} onClick={(e) => menu(e.currentTarget)}>
         <Icon name="more" />
       </button>
     </div>
@@ -398,6 +402,7 @@ function TaskRow({ t }: { t: AgentTask }) {
 type SchedKind = "once" | "hourly" | "hours" | "daily";
 
 function TaskForm({ agentId, onDone }: { agentId: string; onDone: () => void }) {
+  useLanguage();
   const [title, setTitle] = useState("");
   const [instructions, setInstructions] = useState("");
   const [kind, setKind] = useState<SchedKind>("once");
@@ -412,7 +417,7 @@ function TaskForm({ agentId, onDone }: { agentId: string; onDone: () => void }) 
     setBusy(true);
     try {
       await createTask(agentId, { title, instructions, schedule: schedule(), start_now: kind === "once" });
-      toast(kind === "once" ? "Trabalho começou" : "Tarefa agendada");
+      toast(kind === "once" ? tr("Trabalho começou") : tr("Tarefa agendada"));
       onDone();
     } catch (err: any) {
       toast(err.message);
@@ -422,11 +427,11 @@ function TaskForm({ agentId, onDone }: { agentId: string; onDone: () => void }) 
   };
   return (
     <form className="agp-form" onSubmit={submit} onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), onDone())}>
-      <input className="input" autoFocus placeholder="Título (ex.: Resumir notícias de IA)" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
+      <input className="input" autoFocus placeholder={tr("Título (ex.: Resumir notícias de IA)")} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
       <textarea
         className="textarea"
         rows={3}
-        placeholder="O objetivo, com detalhes. A tarefa vê isto, as notas do agente e o estado que ela mesma registra a cada execução."
+        placeholder={tr("O objetivo, com detalhes. A tarefa vê isto, as notas do agente e o estado que ela mesma registra a cada execução.")}
         value={instructions}
         onChange={(e) => {
           setInstructions(e.target.value);
@@ -434,23 +439,22 @@ function TaskForm({ agentId, onDone }: { agentId: string; onDone: () => void }) 
         }}
       />
       <div className="agp-form-row">
-        <select className="select" value={kind} onChange={(e) => setKind(e.target.value as SchedKind)} aria-label="Quando rodar">
-          <option value="once">Começar agora, sem agenda</option>
-          <option value="hourly">A cada hora</option>
-          <option value="hours">A cada N horas</option>
-          <option value="daily">Todo dia às…</option>
+        <select className="select" value={kind} onChange={(e) => setKind(e.target.value as SchedKind)} aria-label={tr("Quando rodar")}>
+          <option value="once">{tr("Começar agora, sem agenda")}</option>
+          <option value="hourly">{tr("A cada hora")}</option>
+          <option value="hours">{tr("A cada N horas")}</option>
+          <option value="daily">{tr("Todo dia às…")}</option>
         </select>
         {kind === "hours" && (
-          <input className="input num" type="number" min={1} max={168} value={hours} onChange={(e) => setHours(+e.target.value)} aria-label="Horas" />
+          <input className="input num" type="number" min={1} max={168} value={hours} onChange={(e) => setHours(+e.target.value)} aria-label={tr("Horas")} />
         )}
-        {kind === "daily" && <input className="input num" type="time" value={time} onChange={(e) => setTime(e.target.value)} aria-label="Horário" />}
+        {kind === "daily" && <input className="input num" type="time" value={time} onChange={(e) => setTime(e.target.value)} aria-label={tr("Horário")} />}
       </div>
       <div className="agp-form-row end">
         <button type="button" className="btn ghost" onClick={onDone}>
-          Cancelar
-        </button>
+          {tr("Cancelar")}</button>
         <button type="submit" className="btn primary" disabled={busy || !title.trim() || !instructions.trim()}>
-          {kind === "once" ? "Começar" : "Agendar"}
+          {kind === "once" ? tr("Começar") : tr("Agendar")}
         </button>
       </div>
     </form>
@@ -458,6 +462,7 @@ function TaskForm({ agentId, onDone }: { agentId: string; onDone: () => void }) 
 }
 
 function NoteRow({ n }: { n: AgentNote }) {
+  useLanguage();
   const [editing, setEditing] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -495,11 +500,11 @@ function NoteRow({ n }: { n: AgentNote }) {
     );
   return (
     <div className="note-row">
-      <button type="button" className="note-txt" onClick={() => setEditing(true)} data-tip="Editar">
+      <button type="button" className="note-txt" onClick={() => setEditing(true)} data-tip={tr("Editar")}>
         {n.content}
-        {n.source !== "agent" && <span className="src">{n.source === "user" ? "você" : "pesquisa"}</span>}
+        {n.source !== "agent" && <span className="src">{n.source === "user" ? tr("você") : tr("pesquisa")}</span>}
       </button>
-      <button type="button" className="icon-btn note-del" aria-label="Apagar nota" data-tip="Apagar" onClick={() => removeNote(n)}>
+      <button type="button" className="icon-btn note-del" aria-label={tr("Apagar nota")} data-tip={tr("Apagar")} onClick={() => removeNote(n)}>
         <Icon name="close" />
       </button>
     </div>
@@ -507,6 +512,7 @@ function NoteRow({ n }: { n: AgentNote }) {
 }
 
 function NoteAdd({ agentId, onDone }: { agentId: string; onDone: () => void }) {
+  useLanguage();
   const ref = useRef<HTMLTextAreaElement>(null);
   const save = () => {
     const v = ref.current?.value.trim();
@@ -519,7 +525,7 @@ function NoteAdd({ agentId, onDone }: { agentId: string; onDone: () => void }) {
         ref={ref}
         className="textarea"
         autoFocus
-        placeholder="Algo que o agente deve sempre lembrar"
+        placeholder={tr("Algo que o agente deve sempre lembrar")}
         onInput={(e) => autosize(e.currentTarget, 240)}
         onBlur={save}
         onKeyDown={(e) => {
@@ -537,11 +543,12 @@ function NoteAdd({ agentId, onDone }: { agentId: string; onDone: () => void }) {
   );
 }
 
-const DECISION_TEXT: Record<AgentDecision, string> = { allow: "livre", ask: "pergunta", block: "bloqueado" };
+const DECISION_TEXT = (): Record<AgentDecision, string> => ({ allow: tr("livre"), ask: tr("pergunta"), block: tr("bloqueado") });
 /** Actions that only exist with a folder of the user's computer granted (executors work there too). */
 const needsFolder = (a: AgentAction) => a.startsWith("host_") || a === "delegate";
 
 function AccessSummary({ d }: { d: AgentDetail }) {
+  useLanguage();
   const folder = d.agent.host_folder;
   const shown = d.actions.filter((x) => folder || !needsFolder(x.id));
   return (
@@ -549,30 +556,29 @@ function AccessSummary({ d }: { d: AgentDetail }) {
       {shown.map((x) => (
         <div key={x.id} className={"acc-row dec-" + d.rules[x.id]}>
           <span className="l">{x.label}</span>
-          <span className="v">{DECISION_TEXT[d.rules[x.id]]}</span>
+          <span className="v">{DECISION_TEXT()[d.rules[x.id]]}</span>
         </div>
       ))}
       <div className="acc-row">
-        <span className="l">Pasta do seu computador</span>
-        <span className="v" title={folder || ""}>{folder ? folderName(folder) : "nenhuma"}</span>
+        <span className="l">{tr("Pasta do seu computador")}</span>
+        <span className="v" title={folder || ""}>{folder ? folderName(folder) : tr("nenhuma")}</span>
       </div>
       <div className="acc-row">
-        <span className="l">Pesquisa proativa</span>
-        <span className="v">{d.agent.research_hours ? `a cada ${d.agent.research_hours} h` : "desligada"}</span>
+        <span className="l">{tr("Pesquisa proativa")}</span>
+        <span className="v">{d.agent.research_hours ? tr("a cada {0} h", d.agent.research_hours) : tr("desligada")}</span>
       </div>
       <button type="button" className="btn ghost agp-edit" onClick={() => editAgent(d.agent.id)}>
         <Ic name="sliders" />
-        Editar permissões
-      </button>
+        {tr("Editar permissões")}</button>
     </div>
   );
 }
 
-const GROUPS: { id: TaskGroup; label: string }[] = [
-  { id: "active", label: "Em andamento" },
-  { id: "scheduled", label: "Agendadas" },
-  { id: "done", label: "Concluídas" },
-];
+const GROUPS = (): { id: TaskGroup; label: string }[] => ([
+  { id: "active", label: tr("Em andamento") },
+  { id: "scheduled", label: tr("Agendadas") },
+  { id: "done", label: tr("Concluídas") },
+]);
 
 const STATUS_ORDER: Partial<Record<AgentTask["status"], number>> = { running: 0, waiting: 1, blocked: 2 };
 
@@ -584,6 +590,7 @@ function sortGroup(id: TaskGroup, tasks: AgentTask[]) {
 
 /** The agent's work, by where it stands: in progress, scheduled, done (done starts folded). */
 function WorkGroup({ label, tasks, folded }: { label: string; tasks: AgentTask[]; folded?: boolean }) {
+  useLanguage();
   const [open, setOpen] = useState(!folded);
   if (!tasks.length) return null;
   return (
@@ -598,20 +605,21 @@ function WorkGroup({ label, tasks, folded }: { label: string; tasks: AgentTask[]
   );
 }
 
-const EVENT_TEXT: Record<AgentEvent["kind"], string> = {
-  created: "criada",
-  ran: "rodou",
-  continue: "vai continuar",
-  blocked: "precisa de você",
-  done: "concluída",
-  error: "falhou",
-  stopped: "interrompida",
-  resumed: "retomada",
-};
+const EVENT_TEXT = (): Record<AgentEvent["kind"], string> => ({
+  created: tr("criada"),
+  ran: tr("rodou"),
+  continue: tr("vai continuar"),
+  blocked: tr("precisa de você"),
+  done: tr("concluída"),
+  error: tr("falhou"),
+  stopped: tr("interrompida"),
+  resumed: tr("retomada"),
+});
 
 /** The journal: what the agent's work did, newest first. */
 function ActivityList({ events, tasks }: { events: AgentEvent[]; tasks: AgentTask[] }) {
-  if (!events.length) return <p className="agp-empty">O que o trabalho do agente fizer aparece aqui: execuções, conclusões, perguntas.</p>;
+  useLanguage();
+  if (!events.length) return <p className="agp-empty">{tr("O que o trabalho do agente fizer aparece aqui: execuções, conclusões, perguntas.")}</p>;
   return (
     <ol className="agp-log">
       {events.map((e) => {
@@ -620,7 +628,7 @@ function ActivityList({ events, tasks }: { events: AgentEvent[]; tasks: AgentTas
           <li key={e.id} className={"ev-" + e.kind}>
             <button type="button" disabled={!task} onClick={() => task && openConversation(task.conversation_id)}>
               <span className="h">
-                <b>{e.title}</b> {EVENT_TEXT[e.kind] || e.kind} · {relTime(e.created_at)}
+                <b>{e.title}</b> {EVENT_TEXT()[e.kind] || e.kind} · {relTime(e.created_at)}
               </span>
               {e.text && <span className="x">{oneLine(e.text, 160)}</span>}
             </button>
@@ -632,6 +640,7 @@ function ActivityList({ events, tasks }: { events: AgentEvent[]; tasks: AgentTas
 }
 
 export function AgentPanel() {
+  useLanguage();
   const d = useApp((s) => s.agentDetail);
   const conv = useApp((s) => s.current?.conv);
   const [addingTask, setAddingTask] = useState(false);
@@ -641,9 +650,9 @@ export function AgentPanel() {
   const blocked = tasks.filter((t) => t.status === "blocked");
   const here = conv?.kind === "agent_task" ? tasks.find((t) => t.conversation_id === conv.id) : undefined;
   const waiting = approvals.length + blocked.length;
-  const status = agent.paused ? "Pausado: nada roda sozinho" : agent.running ? (agent.running === 1 ? "1 trabalho rodando" : `${agent.running} trabalhos rodando`) : "Disponível";
+  const status = agent.paused ? tr("Pausado: nada roda sozinho") : agent.running ? (agent.running === 1 ? tr("1 trabalho rodando") : tr("{0} trabalhos rodando", agent.running)) : tr("Disponível");
   return (
-    <aside className="agent-panel" aria-label={`Atividade de ${agent.name}`}>
+    <aside className="agent-panel" aria-label={tr("Atividade de {0}", agent.name)}>
       <header className="agp-head">
         <span className={cx("agent-glyph big", agent.running > 0 && "is-running", agent.paused && "is-paused")} aria-hidden="true">
           <i />
@@ -652,19 +661,18 @@ export function AgentPanel() {
           <b>{agent.name}</b>
           <span>{status}</span>
         </div>
-        <button type="button" className="icon-btn" aria-label="Opções do agente" onClick={(e) => openMenu({ anchor: e.currentTarget, placement: "bottom-end", items: agentMenuItems(agent) })}>
+        <button type="button" className="icon-btn" aria-label={tr("Opções do agente")} onClick={(e) => openMenu({ anchor: e.currentTarget, placement: "bottom-end", items: agentMenuItems(agent) })}>
           <Icon name="more" />
         </button>
       </header>
       {conv?.kind === "agent_task" && (
         <button type="button" className="agp-back" onClick={() => openAgent(agent)}>
           <Icon name="chevron-left" />
-          Conversa principal
-        </button>
+          {tr("Conversa principal")}</button>
       )}
       <div className="agp-scroll">
         {waiting > 0 && (
-          <Section title="Esperando você" count={waiting}>
+          <Section title={tr("Esperando você")} count={waiting}>
             {approvals.map((a) => (
               <ApprovalRow key={a.id} a={a} agent={agent} />
             ))}
@@ -677,29 +685,29 @@ export function AgentPanel() {
           <ObjectiveSections task={here} issues={issues.filter((i) => i.task_id === here.id)} calls={calls.filter((c) => c.task_id === here.id)} />
         )}
         <Section
-          title="Trabalho"
+          title={tr("Trabalho")}
           action={
-            <button type="button" className="icon-btn" aria-label="Nova tarefa" data-tip="Nova tarefa" onClick={() => setAddingTask(true)}>
+            <button type="button" className="icon-btn" aria-label={tr("Nova tarefa")} data-tip={tr("Nova tarefa")} onClick={() => setAddingTask(true)}>
               <Icon name="new" />
             </button>
           }
         >
           {addingTask && <TaskForm agentId={agent.id} onDone={() => setAddingTask(false)} />}
-          {GROUPS.map((g) => (
+          {GROUPS().map((g) => (
             <WorkGroup key={g.id} label={g.label} folded={g.id === "done"} tasks={sortGroup(g.id, tasks.filter((t) => taskGroup(t) === g.id))} />
           ))}
           {!tasks.length && !addingTask && (
-            <p className="agp-empty">Peça na conversa ou crie aqui. Um trabalho segue em segundo plano, guarda onde parou e continua até concluir; a agenda é opcional.</p>
+            <p className="agp-empty">{tr("Peça na conversa ou crie aqui. Um trabalho segue em segundo plano, guarda onde parou e continua até concluir; a agenda é opcional.")}</p>
           )}
         </Section>
-        <Section title="Atividade" collapsed>
+        <Section title={tr("Atividade")} collapsed>
           <ActivityList events={activity} tasks={tasks} />
         </Section>
         <Section
-          title="Notas"
+          title={tr("Notas")}
           count={notes.length}
           action={
-            <button type="button" className="icon-btn" aria-label="Nova nota" data-tip="Nova nota" onClick={() => setAddingNote(true)}>
+            <button type="button" className="icon-btn" aria-label={tr("Nova nota")} data-tip={tr("Nova nota")} onClick={() => setAddingNote(true)}>
               <Icon name="new" />
             </button>
           }
@@ -708,9 +716,9 @@ export function AgentPanel() {
           {[...notes].reverse().map((n) => (
             <NoteRow key={n.id} n={n} />
           ))}
-          {!notes.length && !addingNote && <p className="agp-empty">A memória do agente. Ele anota o que vai importar depois; você pode editar tudo.</p>}
+          {!notes.length && !addingNote && <p className="agp-empty">{tr("A memória do agente. Ele anota o que vai importar depois; você pode editar tudo.")}</p>}
         </Section>
-        <Section title="Acesso">
+        <Section title={tr("Acesso")}>
           <AccessSummary d={d} />
         </Section>
       </div>
@@ -721,24 +729,25 @@ export function AgentPanel() {
 // ------------------------------------------------------------------ thread intro
 
 /** Until the suggestion model writes the agent's own cards. */
-const SUGGESTIONS = [
-  "Apresente-se e me pergunte sobre meus objetivos.",
-  "O que você consegue fazer por mim?",
-  "Todo dia às 8h, pesquise as principais notícias de IA e me traga um resumo.",
-];
+const SUGGESTIONS = () => ([
+  tr("Apresente-se e me pergunte sobre meus objetivos."),
+  tr("O que você consegue fazer por mim?"),
+  tr("Todo dia às 8h, pesquise as principais notícias de IA e me traga um resumo."),
+]);
 
 export function AgentIntro() {
+  useLanguage();
   const conv = useApp((s) => s.current?.conv);
   const own = useApp((s) => s.agents.find((a) => a.id === s.current?.conv.agent?.id)?.suggestions);
   if (!conv?.agent) return null;
-  const sugs = own?.length ? own : SUGGESTIONS;
+  const sugs = own?.length ? own : SUGGESTIONS();
   return (
     <div className="agent-intro">
       <span className="agent-glyph huge" aria-hidden="true">
         <i />
       </span>
       <b>{conv.agent.name}</b>
-      <p>Tem memória própria, um computador isolado e um trabalho que segue sem você: cada tarefa guarda onde parou e continua até concluir. O que precisar da sua decisão aparece no painel ao lado.</p>
+      <p>{tr("Tem memória própria, um computador isolado e um trabalho que segue sem você: cada tarefa guarda onde parou e continua até concluir. O que precisar da sua decisão aparece no painel ao lado.")}</p>
       <div className="intro-sugs">
         {sugs.map((s) => (
           <button
@@ -760,52 +769,53 @@ export function AgentIntro() {
 
 // ------------------------------------------------------------------ create / edit dialog
 
-const RESEARCH_OPTIONS = [
-  { v: 0, l: "Desligada" },
-  { v: 1, l: "A cada hora" },
-  { v: 3, l: "A cada 3 horas" },
-  { v: 6, l: "A cada 6 horas" },
-  { v: 12, l: "A cada 12 horas" },
-  { v: 24, l: "Uma vez por dia" },
-];
+const RESEARCH_OPTIONS = () => ([
+  { v: 0, l: tr("Desligada") },
+  { v: 1, l: tr("A cada hora") },
+  { v: 3, l: tr("A cada 3 horas") },
+  { v: 6, l: tr("A cada 6 horas") },
+  { v: 12, l: tr("A cada 12 horas") },
+  { v: 24, l: tr("Uma vez por dia") },
+]);
 
-const DECISIONS: { id: AgentDecision; label: string }[] = [
-  { id: "allow", label: "Livre" },
-  { id: "ask", label: "Perguntar" },
-  { id: "block", label: "Bloquear" },
-];
+const DECISIONS = (): { id: AgentDecision; label: string }[] => ([
+  { id: "allow", label: tr("Livre") },
+  { id: "ask", label: tr("Perguntar") },
+  { id: "block", label: tr("Bloquear") },
+]);
 
-const ACTION_HINTS: Record<AgentAction, string> = {
-  web: "web_search e fetch_url",
-  computer: "código e arquivos no Linux isolado do agente",
-  tasks: "trabalho em segundo plano, inclusive recorrente",
-  host_read: "ler e buscar na pasta concedida",
-  host_edit: "alterar arquivos da pasta concedida",
-  host_command: "comandos no Windows, sem sandbox",
-  host_git_read: "status, diff, log e consulta da conta/repositório",
-  host_git_write: "init, add, commit, branches, tags e remotes locais",
-  host_github_publish: "criar repositório, push, release e anexos",
-  delegate: "investigação, implementação e revisão por outros modelos, com estas mesmas permissões",
-};
+const ACTION_HINTS = (): Record<AgentAction, string> => ({
+  web: tr("web_search e fetch_url"),
+  computer: tr("código e arquivos no Linux isolado do agente"),
+  tasks: tr("trabalho em segundo plano, inclusive recorrente"),
+  host_read: tr("ler e buscar na pasta concedida"),
+  host_edit: tr("alterar arquivos da pasta concedida"),
+  host_command: tr("comandos no Windows, sem sandbox"),
+  host_git_read: tr("status, diff, log e consulta da conta/repositório"),
+  host_git_write: tr("init, add, commit, branches, tags e remotes locais"),
+  host_github_publish: tr("criar repositório, push, release e anexos"),
+  delegate: tr("investigação, implementação e revisão por outros modelos, com estas mesmas permissões"),
+});
 
 const ACTION_DEFAULTS: Record<AgentAction, AgentDecision> = {
   web: "allow", computer: "allow", tasks: "ask", host_read: "allow", host_edit: "ask", host_command: "ask",
   host_git_read: "allow", host_git_write: "ask", host_github_publish: "ask", delegate: "allow",
 };
-const ACTION_LABELS: Record<AgentAction, string> = {
-  web: "Pesquisar e abrir páginas na web",
-  computer: "Rodar código e gravar arquivos no computador dele",
-  tasks: "Criar e agendar tarefas",
-  host_read: "Ler a pasta concedida",
-  host_edit: "Editar arquivos da pasta concedida",
-  host_command: "Rodar comandos no PowerShell",
-  host_git_read: "Consultar Git e GitHub",
-  host_git_write: "Alterar o Git local",
-  host_github_publish: "Publicar no GitHub",
-  delegate: "Pedir trabalho a outros modelos",
-};
+const ACTION_LABELS = (): Record<AgentAction, string> => ({
+  web: tr("Pesquisar e abrir páginas na web"),
+  computer: tr("Rodar código e gravar arquivos no computador dele"),
+  tasks: tr("Criar e agendar tarefas"),
+  host_read: tr("Ler a pasta concedida"),
+  host_edit: tr("Editar arquivos da pasta concedida"),
+  host_command: tr("Rodar comandos no PowerShell"),
+  host_git_read: tr("Consultar Git e GitHub"),
+  host_git_write: tr("Alterar o Git local"),
+  host_github_publish: tr("Publicar no GitHub"),
+  delegate: tr("Pedir trabalho a outros modelos"),
+});
 
 export function AgentDialog({ id, agentId }: { id: number; agentId: string | null }) {
+  useLanguage();
   const providers = useApp((s) => s.providers);
   const defaultModel = useApp((s) => s.settings.default_model);
   const [loaded, setLoaded] = useState(!agentId);
@@ -845,7 +855,7 @@ export function AgentDialog({ id, agentId }: { id: number; agentId: string | nul
     try {
       await saveAgent(agentId, { name, instructions, model, host_folder: folder, research_hours: research, rules });
       close();
-      if (!agentId) toast(`${name.trim()} está pronto`);
+      if (!agentId) toast(tr("{0} está pronto", name.trim()));
     } catch (err: any) {
       toast(err.message);
     } finally {
@@ -860,32 +870,32 @@ export function AgentDialog({ id, agentId }: { id: number; agentId: string | nul
       toast(err.message);
     }
   };
-  const actions = (Object.keys(ACTION_LABELS) as AgentAction[]).filter((a) => folder || !needsFolder(a));
+  const actions = (Object.keys(ACTION_LABELS()) as AgentAction[]).filter((a) => folder || !needsFolder(a));
 
   return (
-    <DialogShell id={id} className="agent-dialog" label={agentId ? "Editar agente" : "Novo agente"}>
+    <DialogShell id={id} className="agent-dialog" label={agentId ? tr("Editar agente") : tr("Novo agente")}>
       <form onSubmit={submit} className={cx("agent-form", !loaded && "is-loading")}>
-        <h3>{agentId ? "Editar agente" : "Novo agente"}</h3>
-        <p className="lead">Um agente assume objetivos e os leva adiante em segundo plano, retomando de onde parou, enquanto o CEU estiver aberto. Guarda o que aprende em notas, tem um computador próprio (Linux isolado) e, com uma pasta concedida, pode pedir investigação, implementação e revisão a outros modelos.</p>
+        <h3>{agentId ? tr("Editar agente") : tr("Novo agente")}</h3>
+        <p className="lead">{tr("Um agente assume objetivos e os leva adiante em segundo plano, retomando de onde parou, enquanto o CEU estiver aberto. Guarda o que aprende em notas, tem um computador próprio (Linux isolado) e, com uma pasta concedida, pode pedir investigação, implementação e revisão a outros modelos.")}</p>
         <label className="af-field">
-          <span>Nome</span>
-          <input className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="Ex.: Pesquisador, Operações, Atlas" />
+          <span>{tr("Nome")}</span>
+          <input className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder={tr("Ex.: Pesquisador, Operações, Atlas")} />
         </label>
         <label className="af-field">
-          <span>Papel e objetivos</span>
+          <span>{tr("Papel e objetivos")}</span>
           <textarea
             className="textarea"
             rows={5}
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
-            placeholder="O que ele acompanha, como você gosta do trabalho feito, o que nunca deve fazer."
+            placeholder={tr("O que ele acompanha, como você gosta do trabalho feito, o que nunca deve fazer.")}
           />
         </label>
         <div className="af-grid">
           <label className="af-field">
-            <span>Modelo</span>
+            <span>{tr("Modelo")}</span>
             <select className="select" value={model || ""} onChange={(e) => setModel(e.target.value || null)}>
-              {!models.some((m) => m.ref === model) && <option value={model || ""}>{model ? model.split("::").pop() : "Escolha um modelo"}</option>}
+              {!models.some((m) => m.ref === model) && <option value={model || ""}>{model ? model.split("::").pop() : tr("Escolha um modelo")}</option>}
               {models.map((m) => (
                 <option key={m.ref} value={m.ref}>
                   {m.name} · {m.provider.name}
@@ -894,9 +904,9 @@ export function AgentDialog({ id, agentId }: { id: number; agentId: string | nul
             </select>
           </label>
           <label className="af-field">
-            <span>Pesquisa proativa</span>
+            <span>{tr("Pesquisa proativa")}</span>
             <select className="select" value={research} onChange={(e) => setResearch(+e.target.value)}>
-              {RESEARCH_OPTIONS.map((o) => (
+              {RESEARCH_OPTIONS().map((o) => (
                 <option key={o.v} value={o.v}>
                   {o.l}
                 </option>
@@ -905,30 +915,28 @@ export function AgentDialog({ id, agentId }: { id: number; agentId: string | nul
           </label>
         </div>
         <div className="af-field">
-          <span>Pasta do seu computador (opcional)</span>
+          <span>{tr("Pasta do seu computador (opcional)")}</span>
           <div className="af-folder">
-            <code title={folder || ""}>{folder || "Nenhuma: o agente só usa o computador dele"}</code>
+            <code title={folder || ""}>{folder || tr("Nenhuma: o agente só usa o computador dele")}</code>
             <button type="button" className="btn" onClick={pick}>
-              Escolher…
-            </button>
+              {tr("Escolher…")}</button>
             {folder && (
               <button type="button" className="btn ghost" onClick={() => setFolder(null)}>
-                Remover
-              </button>
+                {tr("Remover")}</button>
             )}
           </div>
         </div>
         <div className="af-field">
-          <span>Permissões</span>
+          <span>{tr("Permissões")}</span>
           <div className="af-rules">
             {actions.map((a) => (
               <div key={a} className="af-rule">
                 <div className="l">
-                  <b>{ACTION_LABELS[a]}</b>
-                  <span>{ACTION_HINTS[a]}</span>
+                  <b>{ACTION_LABELS()[a]}</b>
+                  <span>{ACTION_HINTS()[a]}</span>
                 </div>
-                <div className="seg" role="radiogroup" aria-label={ACTION_LABELS[a]}>
-                  {DECISIONS.map((dd) => (
+                <div className="seg" role="radiogroup" aria-label={ACTION_LABELS()[a]}>
+                  {DECISIONS().map((dd) => (
                     <button
                       key={dd.id}
                       type="button"
@@ -944,14 +952,13 @@ export function AgentDialog({ id, agentId }: { id: number; agentId: string | nul
               </div>
             ))}
           </div>
-          <p className="af-note">“Perguntar” pausa o trabalho até você responder, no painel do agente ou na conversa. Os modelos que trabalham para o agente seguem estas mesmas regras. A pesquisa proativa só lê e anota, qualquer que seja a regra.</p>
+          <p className="af-note">{tr("“Perguntar” pausa o trabalho até você responder, no painel do agente ou na conversa. Os modelos que trabalham para o agente seguem estas mesmas regras. A pesquisa proativa só lê e anota, qualquer que seja a regra.")}</p>
         </div>
         <div className="row">
           <button type="button" className="btn ghost" onClick={close}>
-            Cancelar
-          </button>
+            {tr("Cancelar")}</button>
           <button type="submit" className="btn primary" disabled={busy || !name.trim() || !model}>
-            {agentId ? "Salvar" : "Criar agente"}
+            {agentId ? tr("Salvar") : tr("Criar agente")}
           </button>
         </div>
       </form>

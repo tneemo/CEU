@@ -1,3 +1,4 @@
+import { tr, useLanguage } from "../lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import type { Conversation } from "../api";
 import { Ic, Icon } from "../lib/icons";
@@ -21,17 +22,17 @@ export function towerBlocks(count: number | undefined) {
 export function convMenuItems(c: Conversation, onRename: () => void): MenuItem[] {
   if (c.temporary)
     return [
-      { label: "Exportar como Markdown", icon: "download", key: "e", onSelect: () => exportConversation(c) },
+      { label: tr("Exportar como Markdown"), icon: "download", key: "e", onSelect: () => exportConversation(c) },
       "sep",
-      { label: "Excluir", icon: "trash", danger: true, key: "d", onSelect: () => removeConversation(c) },
+      { label: tr("Excluir"), icon: "trash", danger: true, key: "d", onSelect: () => removeConversation(c) },
     ];
   return [
-    { label: c.pinned ? "Desafixar" : "Fixar", icon: c.pinned ? "unpin" : "pin", key: "p", onSelect: () => togglePin(c) },
-    { label: "Renomear", icon: "rename", key: "r", onSelect: onRename },
-    { label: "Exportar como Markdown", icon: "download", key: "e", onSelect: () => exportConversation(c) },
-    { label: "Arquivar", icon: "archive", key: "a", onSelect: () => setArchived(c, true) },
+    { label: c.pinned ? tr("Desafixar") : tr("Fixar"), icon: c.pinned ? "unpin" : "pin", key: "p", onSelect: () => togglePin(c) },
+    { label: tr("Renomear"), icon: "rename", key: "r", onSelect: onRename },
+    { label: tr("Exportar como Markdown"), icon: "download", key: "e", onSelect: () => exportConversation(c) },
+    { label: tr("Arquivar"), icon: "archive", key: "a", onSelect: () => setArchived(c, true) },
     "sep",
-    { label: "Excluir", icon: "trash", danger: true, key: "d", onSelect: () => removeConversation(c) },
+    { label: tr("Excluir"), icon: "trash", danger: true, key: "d", onSelect: () => removeConversation(c) },
   ];
 }
 
@@ -45,19 +46,20 @@ function listMenu(anchor: HTMLElement, sort: string, group: string) {
     anchor,
     placement: "bottom-end",
     items: [
-      { header: "Ordenar por" },
-      { label: "Última atividade", checked: sort === "updated", onSelect: () => saveListPref({ sidebar_sort: "updated" }) },
-      { label: "Data de criação", checked: sort === "created", onSelect: () => saveListPref({ sidebar_sort: "created" }) },
+      { header: tr("Ordenar por") },
+      { label: tr("Última atividade"), checked: sort === "updated", onSelect: () => saveListPref({ sidebar_sort: "updated" }) },
+      { label: tr("Data de criação"), checked: sort === "created", onSelect: () => saveListPref({ sidebar_sort: "created" }) },
       "sep",
-      { header: "Agrupar por" },
-      { label: "Data", checked: group === "date", onSelect: () => saveListPref({ sidebar_group: "date" }) },
-      { label: "Projeto", checked: group === "project", onSelect: () => saveListPref({ sidebar_group: "project" }) },
-      { label: "Nenhum", checked: group === "none", onSelect: () => saveListPref({ sidebar_group: "none" }) },
+      { header: tr("Agrupar por") },
+      { label: tr("Data"), checked: group === "date", onSelect: () => saveListPref({ sidebar_group: "date" }) },
+      { label: tr("Projeto"), checked: group === "project", onSelect: () => saveListPref({ sidebar_group: "project" }) },
+      { label: tr("Nenhum"), checked: group === "none", onSelect: () => saveListPref({ sidebar_group: "none" }) },
     ],
   });
 }
 
 function RenameInput({ c }: { c: Conversation }) {
+  useLanguage();
   const ref = useRef<HTMLInputElement>(null);
   const done = useRef(false);
   useEffect(() => {
@@ -76,7 +78,7 @@ function RenameInput({ c }: { c: Conversation }) {
       ref={ref}
       className="rename"
       defaultValue={c.title}
-      aria-label="Novo título"
+      aria-label={tr("Novo título")}
       maxLength={120}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
@@ -99,6 +101,7 @@ function RenameInput({ c }: { c: Conversation }) {
 }
 
 function ConvItem({ c, active, isNew }: { c: Conversation; active: boolean; isNew: boolean }) {
+  useLanguage();
   const renaming = useRenaming((s) => s.id === c.id);
   const [menuOpen, setMenuOpen] = useState(false);
   const menu = (opts: { anchor?: HTMLElement; x?: number; y?: number; placement?: "bottom-start" }) => {
@@ -143,7 +146,7 @@ function ConvItem({ c, active, isNew }: { c: Conversation; active: boolean; isNe
         <RenameInput c={c} />
       ) : (
         <span className="t" title={c.title}>
-          {c.title || "Nova conversa"}
+          {c.title || tr("Nova conversa")}
         </span>
       )}
       {!!c.pinned && (
@@ -155,8 +158,8 @@ function ConvItem({ c, active, isNew }: { c: Conversation; active: boolean; isNe
         <button
           type="button"
           className="more pin-now"
-          aria-label="Fixar"
-          data-tip="Fixar"
+          aria-label={tr("Fixar")}
+          data-tip={tr("Fixar")}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -169,7 +172,7 @@ function ConvItem({ c, active, isNew }: { c: Conversation; active: boolean; isNe
       <button
         type="button"
         className="more"
-        aria-label="Opções"
+        aria-label={tr("Opções")}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -189,10 +192,11 @@ const AREAS: { id: Area; label: string; icon: string; kbd: string }[] = [
 ];
 
 function AreaNav({ area }: { area: Area }) {
+  useLanguage();
   // approvals waiting in agent threads stay visible from Code
   const pending = useApp((s) => s.agents.reduce((n, a) => n + (a.pending || 0), 0));
   return (
-    <nav className="sb-nav" aria-label="Áreas">
+    <nav className="sb-nav" aria-label={tr("Áreas")}>
       {AREAS.map((a) => (
         <button
           key={a.id}
@@ -214,6 +218,7 @@ function AreaNav({ area }: { area: Area }) {
 }
 
 export function Sidebar() {
+  useLanguage();
   const allConvs = useApp((s) => s.convs);
   const sort = useApp((s) => s.settings.sidebar_sort);
   const grouping = useApp((s) => s.settings.sidebar_group);
@@ -230,23 +235,23 @@ export function Sidebar() {
 
   const groups = new Map<string, Conversation[]>();
   const pinned = convs.filter((c) => c.pinned);
-  if (pinned.length) groups.set("Fixadas", pinned);
+  if (pinned.length) groups.set(tr("Fixadas"), pinned);
   for (const c of convs) {
     if (c.pinned) continue;
     const g =
       grouping === "none"
-        ? code ? "Sessões" : "Conversas"
+        ? code ? tr("Sessões") : tr("Conversas")
         : grouping === "project"
           ? c.kind === "code" && c.project_path
             ? c.project_path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || c.project_path
-            : "Conversas"
+            : tr("Conversas")
           : dateGroup(sort === "created" ? c.created_at : c.updated_at);
     if (!groups.has(g)) groups.set(g, []);
     groups.get(g)!.push(c);
   }
 
   return (
-    <aside className="sidebar" id="sidebar" aria-label="Navegação">
+    <aside className="sidebar" id="sidebar" aria-label={tr("Navegação")}>
       <div className="sb-head">
         <a
           className="brand"
@@ -264,41 +269,41 @@ export function Sidebar() {
           </svg>
           <span>CEU</span>
         </a>
-        <button className="icon-btn" id="sb-collapse" data-tip="Recolher barra lateral" data-kbd="Ctrl B" aria-label="Recolher barra lateral" onClick={() => setSidebar(false)}>
+        <button className="icon-btn" id="sb-collapse" data-tip={tr("Recolher barra lateral")} data-kbd="Ctrl B" aria-label={tr("Recolher barra lateral")} onClick={() => setSidebar(false)}>
           <Icon name="sidebar" />
         </button>
-        <button className="icon-btn" id="sb-expand" data-tip-rail data-tip="Abrir barra lateral" data-kbd="Ctrl B" aria-label="Abrir barra lateral" onClick={() => setSidebar(true)}>
+        <button className="icon-btn" id="sb-expand" data-tip-rail data-tip={tr("Abrir barra lateral")} data-kbd="Ctrl B" aria-label={tr("Abrir barra lateral")} onClick={() => setSidebar(true)}>
           <Icon name="sidebar" />
         </button>
       </div>
       <AreaNav area={area} />
       <div className="sb-actions">
-        <button className="sb-action" data-tip-rail data-tip={code ? "Nova sessão" : "Nova conversa"} data-kbd="Ctrl ⇧ O" onClick={() => (code ? newCodeSession() : newChat())}>
+        <button className="sb-action" data-tip-rail data-tip={code ? tr("Nova sessão") : tr("Nova conversa")} data-kbd="Ctrl ⇧ O" onClick={() => (code ? newCodeSession() : newChat())}>
           <Ic name="new" />
-          <span className="lbl">{code ? "Nova sessão" : "Nova conversa"}</span>
+          <span className="lbl">{code ? tr("Nova sessão") : tr("Nova conversa")}</span>
           <kbd>Ctrl ⇧ O</kbd>
         </button>
         {!code && (
-          <button className="sb-action" data-tip-rail data-tip="Nova Room: vários modelos em sequência" onClick={() => openRoomDialog()}>
+          <button className="sb-action" data-tip-rail data-tip={tr("Nova Room: vários modelos em sequência")} onClick={() => openRoomDialog()}>
             <Ic name="chat" />
-            <span className="lbl">Nova Room</span>
+            <span className="lbl">{tr("Nova Room")}</span>
           </button>
         )}
-        <button className="sb-action" data-tip-rail data-tip="Buscar" data-kbd="Ctrl K" onClick={() => openPalette()}>
+        <button className="sb-action" data-tip-rail data-tip={tr("Buscar")} data-kbd="Ctrl K" onClick={() => openPalette()}>
           <Ic name="search" />
-          <span className="lbl">Buscar</span>
+          <span className="lbl">{tr("Buscar")}</span>
           <kbd>Ctrl K</kbd>
         </button>
       </div>
       {!code && <AgentsSection />}
       {convs.length > 0 && (
         <div className="sb-list-head">
-          <span>{code ? "Sessões" : "Histórico"}</span>
+          <span>{code ? tr("Sessões") : tr("Histórico")}</span>
           <button
             type="button"
             className="icon-btn"
-            aria-label="Ordenar e agrupar"
-            data-tip="Ordenar e agrupar"
+            aria-label={tr("Ordenar e agrupar")}
+            data-tip={tr("Ordenar e agrupar")}
             onClick={(e) => listMenu(e.currentTarget, sort, grouping)}
           >
             <Icon name="filter" />
@@ -307,7 +312,7 @@ export function Sidebar() {
       )}
       <div className="sb-list" role="list">
         {!convs.length ? (
-          <div className="sb-empty">{code ? "Suas sessões de código aparecem aqui." : "Suas conversas aparecem aqui."}</div>
+          <div className="sb-empty">{code ? tr("Suas sessões de código aparecem aqui.") : tr("Suas conversas aparecem aqui.")}</div>
         ) : (
           [...groups].map(([label, list]) => (
             <div key={label} className="sb-group" role="group" aria-label={label}>
@@ -320,9 +325,9 @@ export function Sidebar() {
         )}
       </div>
       <div className="sb-foot">
-        <button className="sb-action" data-tip-rail data-tip="Configurações" data-kbd="Ctrl ," onClick={() => openSettings("general")}>
+        <button className="sb-action" data-tip-rail data-tip={tr("Configurações")} data-kbd="Ctrl ," onClick={() => openSettings("general")}>
           <Ic name="settings" />
-          <span className="lbl">Configurações</span>
+          <span className="lbl">{tr("Configurações")}</span>
           <kbd>Ctrl ,</kbd>
         </button>
       </div>

@@ -14,6 +14,14 @@ _home_lock = threading.Lock()
 _home_busy = False
 
 
+def _language(settings=None):
+    return "pt-BR" if (settings or db.get_settings()).get("language") == "pt-BR" else "en"
+
+
+def _home_cache_key(settings=None):
+    return "home_suggestions:" + _language(settings)
+
+
 def _model(fallback):
     return generation._resolve_model(db.get_settings().get("suggestion_model") or fallback)
 
@@ -59,7 +67,7 @@ def _agent_worker(agent_id):
         "tema, no imperativo dirigido ao agente (ex.: \"Apresente-se e me pergunte...\");\n"
         "2. um pedido concreto e útil que ele pode resolver agora;\n"
         "3. uma tarefa recorrente com horário ou frequência, ligada ao propósito.\n"
-        f"Use o idioma das instruções (português se não houver). {RULES}\n\n"
+        f"Use o idioma das instruções ({'português' if _language() == 'pt-BR' else 'inglês'} se não houver). {RULES}\n\n"
         f"<nome>{agent['name']}</nome>\n<instrucoes>{agent['instructions'][:3000] or '(sem instruções)'}</instrucoes>"
     )
     try:
@@ -81,8 +89,8 @@ def _home_signature():
 
 def home():
     """Cached cards for the empty chat; kicks off a refresh when they're stale."""
-    cached = db.get_cache("home_suggestions") or {}
     settings = db.get_settings()
+    cached = db.get_cache(_home_cache_key(settings)) or {}
     if not (settings.get("suggestion_model") or settings.get("default_model")):
         # First run uses the client's static cards until a model is configured.
         return cached.get("items") or []
@@ -105,8 +113,10 @@ def _home_worker():
     global _home_busy
     sig = _home_signature()
     items = None
+    cache_key = None
     try:
         s = db.get_settings()
+        cache_key = _home_cache_key(s)
         titles = [c["title"] for c in db.list_conversations()[:15] if c.get("title")]
         memories = [m["content"] for m in db.list_memories()][-20:] if s.get("memory_enabled") else []
         about = "\n".join(f"{k}: {s[k]}" for k in ("nickname", "occupation", "about") if (s.get(k) or "").strip())
@@ -115,7 +125,7 @@ def _home_worker():
             "nova com um assistente de IA. Baseie-se no perfil, nas memórias e nos assuntos recentes: continue "
             "interesses reais, sem repetir literalmente conversas que já existem, e varie o tipo (uma pergunta, "
             "uma tarefa prática, uma ideia para explorar). Se não houver contexto, sugira usos úteis e variados. "
-            f"Escreva em português. {RULES}\n\n"
+            f"Escreva em {'português' if _language(s) == 'pt-BR' else 'inglês'}. {RULES}\n\n"
             f"<perfil>{about[:1500] or '(vazio)'}</perfil>\n"
             f"<memorias>{chr(10).join(memories)[:2000] or '(nenhuma)'}</memorias>\n"
             f"<conversas_recentes>{chr(10).join(titles) or '(nenhuma)'}</conversas_recentes>"
@@ -126,11 +136,11 @@ def _home_worker():
         traceback.print_exc()
     try:
         if items:
-            db.set_cache("home_suggestions", {"items": items, "at": time.time(), "sig": sig})
+            db.set_cache(cache_key, {"items": items, "at": time.time(), "sig": sig})
             generation.bus.publish({"type": "suggestions"})
-        else:  # failed: keep the old cards, retry in HOME_MIN_AGE instead of on every request
-            old = db.get_cache("home_suggestions") or {}
-            db.set_cache("home_suggestions", {**old, "at": time.time() - HOME_MAX_AGE + HOME_MIN_AGE, "sig": sig})
+        elif cache_key:  # failed: keep the old cards, retry in HOME_MIN_AGE instead of on every request
+            old = db.get_cache(cache_key) or {}
+            db.set_cache(cache_key, {**old, "at": time.time() - HOME_MAX_AGE + HOME_MIN_AGE, "sig": sig})
     finally:
         with _home_lock:
             _home_busy = False

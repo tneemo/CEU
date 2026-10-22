@@ -1,3 +1,4 @@
+import { tr } from "../lib/i18n";
 // Central client state (port of web/js/state.js) on a zustand store.
 // Messages are replaced immutably so each React component re-renders only
 // when its own message changes.
@@ -73,7 +74,7 @@ export interface ToolLive {
 export const useApp = create<AppState>(() => ({
   providers: [],
   settings: {
-    language: "auto",
+    language: "en",
     send_key: "enter",
     default_model: null,
     title_model: null,
@@ -257,7 +258,7 @@ export function findModel(ref: string | null | undefined, providers = S().provid
 export function prettyModel(ref: string | null | undefined, providers = S().providers) {
   const m = findModel(ref, providers);
   if (m) return m.name;
-  if (!ref) return "Sem modelo";
+  if (!ref) return tr("Sem modelo");
   return ref.split("::").pop()!;
 }
 

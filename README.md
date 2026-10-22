@@ -15,7 +15,9 @@ It is a place to experiment with how models work together, while keeping the
 application state on your computer and approvals visible in the conversation.
 
 **Early experimental source release.** Windows is the tested platform. The UI is
-in **Brazilian Portuguese**. Bring an API key or a local OpenAI-compatible model
+in **English by default**, with **Brazilian Portuguese** available in
+**Settings → General → Language**. The legacy Chat UI remains in Portuguese.
+Bring an API key or a local OpenAI-compatible model
 server; CEU includes neither models nor API credits. Remote providers receive the
 context you send them. A standalone desktop installer is not ready.
 

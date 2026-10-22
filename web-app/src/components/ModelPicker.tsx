@@ -1,3 +1,4 @@
+import { tr, useLanguage } from "../lib/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { EffortInfo, Provider } from "../api";
 import { EFFORT_LABELS, allModels, effortFor } from "../api";
@@ -23,6 +24,7 @@ interface ModelPickerProps {
 type View = "models" | "effort";
 
 export function ModelPicker({ providers, efforts, modelRef, effort, onChange, onManage, registerToggle, emptyLabel, manualModelPrefix, autoEfforts }: ModelPickerProps) {
+  useLanguage();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("models");
   const [search, setSearch] = useState("");
@@ -131,8 +133,8 @@ export function ModelPicker({ providers, efforts, modelRef, effort, onChange, on
     if (e.key.length === 1 && document.activeElement !== searchRef.current && searchRef.current) searchRef.current.focus();
   };
 
-  const label = current ? current.name : manualId || (emptyLabel ? "Auto" : (models.length ? "Selecionar modelo" : "Conectar um modelo"));
-  const effortLabel = currentEffort ? EFFORT_LABELS[currentEffort] ?? currentEffort : null;
+  const label = current ? current.name : manualId || (emptyLabel ? "Auto" : (models.length ? tr("Selecionar modelo") : tr("Conectar um modelo")));
+  const effortLabel = currentEffort ? EFFORT_LABELS()[currentEffort] ?? currentEffort : null;
 
   return (
     <div className="model-picker" ref={rootRef} data-popover-open={open ? "" : undefined}>
@@ -144,7 +146,7 @@ export function ModelPicker({ providers, efforts, modelRef, effort, onChange, on
         onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
-        data-tip="Trocar modelo"
+        data-tip={tr("Trocar modelo")}
         data-kbd="Ctrl ."
       >
         <span className="name">{label}</span>
@@ -163,8 +165,8 @@ export function ModelPicker({ providers, efforts, modelRef, effort, onChange, on
                   <Icon name="search" />
                   <input
                     ref={searchRef}
-                    placeholder="Buscar modelo…"
-                    aria-label="Buscar modelo"
+                    placeholder={tr("Buscar modelo…")}
+                    aria-label={tr("Buscar modelo")}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
@@ -172,10 +174,10 @@ export function ModelPicker({ providers, efforts, modelRef, effort, onChange, on
               )}
               <div className="model-picker-list">
                 {emptyLabel && <button type="button" role="menuitemradio" aria-checked={!current && !manualId} className="menu-item model-picker-row" onClick={() => pickModel(null)}><span className="lbl">Auto<span className="sub">{emptyLabel}</span></span>{!current && !manualId && <span className="ic check"><Icon name="check" /></span>}</button>}
-                {manualModelPrefix && <div className="picker-search"><input ref={manualRef} value={manual} onChange={(e) => setManual(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && manual.trim()) { e.preventDefault(); e.stopPropagation(); pickModel(manualModelPrefix + manual.trim()); } }} placeholder="ID ou alias do modelo" aria-label="ID ou alias do modelo" /><button type="button" disabled={!manual.trim()} onClick={() => pickModel(manualModelPrefix + manual.trim())}>Usar</button></div>}
+                {manualModelPrefix && <div className="picker-search"><input ref={manualRef} value={manual} onChange={(e) => setManual(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && manual.trim()) { e.preventDefault(); e.stopPropagation(); pickModel(manualModelPrefix + manual.trim()); } }} placeholder={tr("ID ou alias do modelo")} aria-label={tr("ID ou alias do modelo")} /><button type="button" disabled={!manual.trim()} onClick={() => pickModel(manualModelPrefix + manual.trim())}>{tr("Usar")}</button></div>}
                 {!models.length && (
                   <div className="model-picker-empty">
-                    {emptyLabel ? "Este CLI não informou uma lista de modelos; Auto usa a configuração dele." : "Nenhum provedor conectado. Adicione uma chave da Anthropic, OpenAI, OpenRouter ou um servidor local."}
+                    {emptyLabel ? tr("Este CLI não informou uma lista de modelos; Auto usa a configuração dele.") : tr("Nenhum provedor conectado. Adicione uma chave da Anthropic, OpenAI, OpenRouter ou um servidor local.")}
                   </div>
                 )}
                 {grouped.map(([providerId, items]) => (
@@ -203,15 +205,15 @@ export function ModelPicker({ providers, efforts, modelRef, effort, onChange, on
                     ))}
                   </div>
                 ))}
-                {models.length > 0 && filtered.length === 0 && <div className="model-picker-empty">Nenhum modelo encontrado.</div>}
+                {models.length > 0 && filtered.length === 0 && <div className="model-picker-empty">{tr("Nenhum modelo encontrado.")}</div>}
               </div>
 
               {(currentEffortInfo || onManage) && (
                 <div className="model-picker-foot">
               {currentEffortInfo && (
                 <>
-                  <button type="button" className="menu-item model-picker-row" onClick={() => setView("effort")} title="Quanto o modelo raciocina antes de responder">
-                    <span className="lbl">Esforço</span>
+                  <button type="button" className="menu-item model-picker-row" onClick={() => setView("effort")} title={tr("Quanto o modelo raciocina antes de responder")}>
+                    <span className="lbl">{tr("Esforço")}</span>
                     <span className="model-picker-row-aside">
                       {effortLabel}
                       <Icon name="chevron-right" />
@@ -232,7 +234,7 @@ export function ModelPicker({ providers, efforts, modelRef, effort, onChange, on
                     <span className="ic">
                       <Icon name="sliders" />
                     </span>
-                    <span className="lbl">Gerenciar provedores</span>
+                    <span className="lbl">{tr("Gerenciar provedores")}</span>
                   </button>
                 </>
               )}
@@ -257,7 +259,7 @@ export function ModelPicker({ providers, efforts, modelRef, effort, onChange, on
                     className="menu-item model-picker-row"
                     onClick={() => pickEffort(level)}
                   >
-                    <span className="lbl">{EFFORT_LABELS[level] ?? level}</span>
+                    <span className="lbl">{EFFORT_LABELS()[level] ?? level}</span>
                     {level === currentEffort && (
                       <span className="ic check">
                         <Icon name="check" />

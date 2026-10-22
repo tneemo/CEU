@@ -1,3 +1,4 @@
+import { tr, translateLabel, useLanguage } from "../lib/i18n";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons";
 import { autosize, cx, extOf, formatSize, isMobile, kbd } from "../lib/util";
@@ -17,6 +18,7 @@ export const folderName = (p: string) => p.replace(/[\\/]+$/, "").split(/[\\/]/)
 
 /** Permission mode of the code session (or of the one about to start). */
 function ModeButton() {
+  useLanguage();
   const mode = useApp((s) => (s.current ? s.current.conv.permission_mode : s.pendingMode));
   const rt = useApp((s) => currentRuntime(s));
   const info = modeInfo(mode);
@@ -24,17 +26,17 @@ function ModeButton() {
     <button
       type="button"
       className={"mode-btn mode-" + info.id}
-      data-tip="Modo de permissão"
-      aria-label={`Modo de permissão: ${info.label}`}
+      data-tip={tr("Modo de permissão")}
+      aria-label={tr("Modo de permissão: {0}", info.label)}
       onClick={(e) =>
         openMenu({
           anchor: e.currentTarget,
           placement: "top-start",
           items: [
-            { header: "Modo" },
-            ...MODES.filter((m) => rt.modes.includes(m.id)).map((m, i) => ({
+            { header: tr("Modo") },
+            ...MODES().filter((m) => rt.modes.includes(m.id)).map((m, i) => ({
               label: m.label,
-              sub: rt.mode_notes[m.id] || m.sub,
+              sub: translateLabel(rt.mode_notes[m.id] || m.sub),
               icon: m.icon,
               key: String(i + 1),
               checked: m.id === info.id,
@@ -62,32 +64,32 @@ async function projectMenu(anchor: HTMLElement) {
     anchor,
     placement: "top-start",
     items: [
-      recents.length ? { header: "Recentes" } : null,
+      recents.length ? { header: tr("Recentes") } : null,
       ...recents.map((r) => ({
         label: r.name,
-        sub: r.exists ? r.project_path : "Pasta não encontrada",
+        sub: r.exists ? r.project_path : tr("Pasta não encontrada"),
         icon: "archive",
         disabled: !r.exists,
         checked: r.project_path === cur,
         onSelect: () => setProject(r.project_path),
       })),
       recents.length ? ("sep" as const) : null,
-      { label: "Escolher pasta…", icon: "new", onSelect: () => pickProject() },
+      { label: tr("Escolher pasta…"), icon: "new", onSelect: () => pickProject() },
     ],
   });
 }
 
-const FAMILY_ORDER: { family: RuntimeInfo["family"]; label: string }[] = [
+const FAMILY_ORDER = (): { family: RuntimeInfo["family"]; label: string }[] => ([
   { family: "ceu_sdk", label: "CEU SDK" },
   { family: "codex_sdk", label: "Codex SDK" },
   { family: "claude_sdk", label: "Claude SDK" },
-  { family: "redir", label: "CEU REDIR · agentes externos" },
-];
+  { family: "redir", label: tr("CEU REDIR · agentes externos") },
+]);
 
 function runtimeSub(r: RuntimeInfo) {
-  if (r.status === "ready") return r.detail;
-  if (r.integration) return `${STATE_LABEL[r.integration.state]} · ${r.detail}`;
-  return r.status === "planned" ? r.detail : `${RUNTIME_STATUS[r.status]} · ${r.detail}`;
+  if (r.status === "ready") return translateLabel(r.detail);
+  if (r.integration) return `${STATE_LABEL()[r.integration.state] || tr("Ainda não verificado")} · ${translateLabel(r.detail)}`;
+  return r.status === "planned" ? translateLabel(r.detail) : `${RUNTIME_STATUS()[r.status]} · ${translateLabel(r.detail)}`;
 }
 
 function runtimeMenu(anchor: HTMLElement, runtimes: RuntimeInfo[], current: string) {
@@ -95,7 +97,7 @@ function runtimeMenu(anchor: HTMLElement, runtimes: RuntimeInfo[], current: stri
     anchor,
     placement: "top-start",
     items: [
-      ...FAMILY_ORDER.flatMap(({ family, label }) => {
+      ...FAMILY_ORDER().flatMap(({ family, label }) => {
         const list = runtimes.filter((r) => r.family === family);
         if (!list.length) return [];
         return [
@@ -112,25 +114,26 @@ function runtimeMenu(anchor: HTMLElement, runtimes: RuntimeInfo[], current: stri
         ];
       }),
       "sep" as const,
-      { label: "Configurar runtimes e agentes…", icon: "settings", onSelect: () => openSettings("runtimes") },
+      { label: tr("Configurar runtimes e agentes…"), icon: "settings", onSelect: () => openSettings("runtimes") },
     ],
   });
 }
 
 /** The chosen runtime can't run right now (logged out, uninstalled…): say why, offer setup. */
 function RuntimeNotice() {
+  useLanguage();
   const rt = useApp((s) => (!s.current && s.pendingKind === "code" ? currentRuntime(s) : null));
   if (!rt || rt.status === "ready") return null;
   return (
     <div className="runtime-notice" role="status">
       <Icon name="alert" />
       <span>
-        <b>{rt.name}</b> {rt.integration ? `${STATE_LABEL[rt.integration.state].toLowerCase()}: ` : ""}
-        {rt.detail}
+        <b>{rt.name}</b> {rt.integration ? `${(STATE_LABEL()[rt.integration.state] || tr("Ainda não verificado")).toLowerCase()}: ` : ""}
+        {translateLabel(rt.detail)}
       </span>
       {rt.integration && (
         <button type="button" className="btn" onClick={() => openSettings("runtimes", rt.integration!.id)}>
-          {rt.integration.state === "unconfigured" ? "Configurar" : "Conectar"}
+          {rt.integration.state === "unconfigured" ? tr("Configurar") : tr("Conectar")}
         </button>
       )}
     </div>
@@ -139,11 +142,12 @@ function RuntimeNotice() {
 
 /** Empty code session: which harness runs it. */
 function RuntimeChip() {
+  useLanguage();
   const runtimes = useApp((s) => s.runtimes);
   const rt = useApp((s) => currentRuntime(s));
   if (!runtimes.length) return null;
   return (
-    <button type="button" className={cx("project-chip runtime-chip", rt.status !== "ready" && "is-unavailable")} data-tip="Runtime: quem executa a sessão" onClick={(e) => runtimeMenu(e.currentTarget, runtimes, rt.id)}>
+    <button type="button" className={cx("project-chip runtime-chip", rt.status !== "ready" && "is-unavailable")} data-tip={tr("Runtime: quem executa a sessão")} onClick={(e) => runtimeMenu(e.currentTarget, runtimes, rt.id)}>
       <Icon name={rt.family === "redir" ? "external" : "cube"} />
       <span className="n">{rt.family === "redir" ? `REDIR · ${rt.name}` : rt.name}</span>
       <Icon name="chevron-down" />
@@ -153,6 +157,7 @@ function RuntimeChip() {
 
 /** Empty code session: which folder the agent will work in, and which runtime. */
 function ProjectChip() {
+  useLanguage();
   const project = useApp((s) => s.pendingProject);
   return (
     <>
@@ -161,7 +166,7 @@ function ProjectChip() {
       <RuntimeChip />
       <button type="button" className={"project-chip" + (project ? "" : " is-empty")} onClick={(e) => (project ? projectMenu(e.currentTarget) : pickProject())}>
         <Icon name="archive" />
-        <span className="n">{project ? folderName(project) : "Escolher pasta do projeto…"}</span>
+        <span className="n">{project ? folderName(project) : tr("Escolher pasta do projeto…")}</span>
         {project && <span className="p">{project}</span>}
         <Icon name="chevron-down" />
       </button>
@@ -171,6 +176,7 @@ function ProjectChip() {
 }
 
 function Attachments() {
+  useLanguage();
   const atts = useComposer((s) => s.atts);
   if (!atts.length) return null;
   return (
@@ -180,9 +186,9 @@ function Attachments() {
           {a.preview ? <img className="thumb" src={a.preview} alt="" /> : <span className="fi">{extOf(a.name).slice(0, 4)}</span>}
           <span className="meta">
             <span className="n">{a.name}</span>
-            <span className="s">{a.status === "uploading" ? "Enviando…" : a.status === "error" ? a.error : formatSize(a.size)}</span>
+            <span className="s">{a.status === "uploading" ? tr("Enviando…") : a.status === "error" ? a.error : formatSize(a.size)}</span>
           </span>
-          <button type="button" className="x" aria-label={`Remover ${a.name}`} onClick={() => removeAtt(a.localId)}>
+          <button type="button" className="x" aria-label={tr("Remover {0}", a.name)} onClick={() => removeAtt(a.localId)}>
             <Icon name="close" />
           </button>
         </div>
@@ -194,21 +200,22 @@ function Attachments() {
 /** `@` chosen: the next message goes to that model (it answers here as a participant), or is
  * delegated to Code / an Agent (the work runs there and the result comes back here). */
 function CallChip({ call }: { call: CallSpec }) {
+  useLanguage();
   const ref = refOfCall(call)!;
   const name = useApp((s) => participantLabel(ref, s));
   const delegated = call.surface !== "chat";
   const tip = delegated
     ? call.surface === "code"
-      ? `Uma sessão de Code em ${call.target} recebe o pedido e o contexto desta conversa; o resultado volta para cá`
-      : `${name.replace("Agent · ", "")} recebe o pedido e o contexto desta conversa como uma tarefa; o resultado volta para cá`
-    : `${name} responde a esta mensagem, nesta conversa, vendo o que já foi dito`;
+      ? tr("Uma sessão de Code em {0} recebe o pedido e o contexto desta conversa; o resultado volta para cá", call.target)
+      : tr("{0} recebe o pedido e o contexto desta conversa como uma tarefa; o resultado volta para cá", name.replace("Agent · ", ""))
+    : tr("{0} responde a esta mensagem, nesta conversa, vendo o que já foi dito", name);
   return (
     <div className="call-row">
       <span className={cx("call-chip", delegated && "is-delegated")} data-tip={tip}>
         <ModelGlyph model={ref} />
-        <span>{delegated ? "Delegar a" : "Para"}</span>
+        <span>{delegated ? tr("Delegar a") : tr("Para")}</span>
         <b>{name}</b>
-        <button type="button" className="x" aria-label={`Não chamar ${name}`} onClick={() => (setCall(null), focusComposer())}>
+        <button type="button" className="x" aria-label={tr("Não chamar {0}", name)} onClick={() => (setCall(null), focusComposer())}>
           <Icon name="close" />
         </button>
       </span>
@@ -217,27 +224,25 @@ function CallChip({ call }: { call: CallSpec }) {
 }
 
 function DockHint({ empty }: { empty: boolean }) {
+  useLanguage();
   const hasModels = useApp((s) => allModels(s.providers).length > 0);
   const sendKey = useApp((s) => s.settings.send_key);
   const callable = useApp((s) => canCall(s) && (allModels(s.providers).length > 1 || canDelegate(s)));
   if (!hasModels)
     return (
       <div className="dock-hint">
-        Nenhum modelo disponível.{" "}
+        {tr("Nenhum modelo disponível.")}{" "}
         <button type="button" onClick={() => openSettings("providers")}>
-          Conectar um provedor
-        </button>
+          {tr("Conectar um provedor")}</button>
       </div>
     );
   if (!empty) return <div className="dock-hint" />;
   const ctrl = sendKey === "ctrl-enter";
   return (
     <div className="dock-hint">
-      <kbd>{ctrl ? kbd("Ctrl ↵") : "↵"}</kbd> envia · <kbd>{ctrl ? "↵" : "⇧ ↵"}</kbd> nova linha · <kbd>{kbd("Ctrl K")}</kbd> buscar
-      {callable && (
+      <kbd>{ctrl ? kbd("Ctrl ↵") : "↵"}</kbd> {tr("envia · ")}<kbd>{ctrl ? "↵" : "⇧ ↵"}</kbd> {tr("nova linha · ")}<kbd>{kbd("Ctrl K")}</kbd> {tr("buscar")}{callable && (
         <>
-          {" "}· <kbd>@</kbd> chama outro modelo, o Code ou um agente
-        </>
+          {" "}· <kbd>@</kbd> {tr("chama outro modelo, o Code ou um agente")}</>
       )}
     </div>
   );
@@ -245,11 +250,12 @@ function DockHint({ empty }: { empty: boolean }) {
 
 function greeting() {
   const h = new Date().getHours();
-  return h < 5 ? "Boa noite" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
+  return h < 5 ? tr("Boa noite") : h < 12 ? tr("Bom dia") : h < 18 ? tr("Boa tarde") : tr("Boa noite");
 }
 
 /** Empty-state line above the composer: the user's nickname, or what a temporary chat means. */
 function Greeting() {
+  useLanguage();
   const nickname = useApp((s) => s.settings.nickname.trim());
   const temp = useApp((s) => s.pendingTemporary);
   const code = useApp((s) => s.pendingKind === "code");
@@ -257,19 +263,19 @@ function Greeting() {
   if (code)
     return (
       <div className="greeting is-code">
-        <b>Sessão de código</b>
+        <b>{tr("Sessão de código")}</b>
         <span>
           {rt.family === "redir"
-            ? `O ${rt.name} trabalha na pasta escolhida com o próprio harness; o CEU supervisiona o processo e registra cada ação.`
-            : "O agente lê, edita e roda comandos na pasta escolhida, pedindo sua aprovação conforme o modo."}
+            ? tr("O {0} trabalha na pasta escolhida com o próprio harness; o CEU supervisiona o processo e registra cada ação.", rt.name)
+            : tr("O agente lê, edita e roda comandos na pasta escolhida, pedindo sua aprovação conforme o modo.")}
         </span>
       </div>
     );
   if (temp)
     return (
       <div className="greeting is-temp">
-        <b>Conversa temporária</b>
-        <span>Não aparece no histórico e é apagada quando você sair dela.</span>
+        <b>{tr("Conversa temporária")}</b>
+        <span>{tr("Não aparece no histórico e é apagada quando você sair dela.")}</span>
       </div>
     );
   if (!nickname) return null;
@@ -283,14 +289,15 @@ function Greeting() {
 }
 
 /** Until the suggestion model has read the history (or when there's no model yet). */
-const HOME_SUGGESTIONS = [
-  "Me ajude a organizar as prioridades da minha semana.",
-  "Explique um conceito que eu deveria entender melhor, com exemplos.",
-  "Revise um texto meu e sugira melhorias de clareza.",
-];
+const HOME_SUGGESTIONS = () => ([
+  tr("Me ajude a organizar as prioridades da minha semana."),
+  tr("Explique um conceito que eu deveria entender melhor, com exemplos."),
+  tr("Revise um texto meu e sugira melhorias de clareza."),
+]);
 
 /** Three starter cards under the empty composer, written from the user's history. */
 function HomeSuggestions() {
+  useLanguage();
   const items = useApp((s) => s.homeSuggestions);
   const typing = useComposer((s) => !!s.text.trim());
   useEffect(() => {
@@ -299,7 +306,7 @@ function HomeSuggestions() {
   if (typing) return null;
   return (
     <div className="intro-sugs home-sugs">
-      {(items.length ? items : HOME_SUGGESTIONS).map((s) => (
+      {(items.length ? items : HOME_SUGGESTIONS()).map((s) => (
         <button
           key={s}
           type="button"
@@ -317,6 +324,7 @@ function HomeSuggestions() {
 }
 
 export function Dock({ empty }: { empty: boolean }) {
+  const language = useLanguage();
   const text = useComposer((s) => s.text);
   const atts = useComposer((s) => s.atts);
   const generating = useApp((s) => s.generating.length > 0);
@@ -376,7 +384,8 @@ export function Dock({ empty }: { empty: boolean }) {
     if (query === null) return [];
     const models: Target[] = matchModels(allModels(allProviders), query, 6).map((m) => ({ kind: "model", key: m.ref, m }));
     return delegable ? [...models, ...matchSurfaces(query, projects || [], agents)] : models;
-  }, [query, allProviders, delegable, projects, agents]);
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- Surface labels depend on the active locale.
+  }, [query, allProviders, delegable, projects, agents, language]);
   const menuOpen = !!mention && mention.start !== dismissed && mentionItems.length > 0;
   // highlighted row; back to the first whenever the query changes
   const [sel, setSel] = useState({ query: "", i: 0 });
@@ -506,24 +515,24 @@ export function Dock({ empty }: { empty: boolean }) {
           rows={1}
           placeholder={
             agentic && generating
-              ? "Mande uma correção ao agente…"
+              ? tr("Mande uma correção ao agente…")
               : parked
-                ? "Responda à aprovação acima, ou escreva para seguir sem ela"
+                ? tr("Responda à aprovação acima, ou escreva para seguir sem ela")
                 : agentName
-                  ? `Fale com ${agentName}`
+                  ? tr("Fale com {0}", agentName)
                   : code
-                    ? "Descreva uma tarefa ou faça uma pergunta"
+                    ? tr("Descreva uma tarefa ou faça uma pergunta")
                     : call && call.surface !== "chat"
-                      ? `O que ${callName} deve fazer? (vazio: o que a conversa pede)`
+                      ? tr("O que {0} deve fazer? (vazio: o que a conversa pede)", callName)
                       : callName
-                        ? `Mensagem para ${callName}, ou envie vazio para passar a vez`
+                        ? tr("Mensagem para {0}, ou envie vazio para passar a vez", callName)
                         : room
-                          ? "Escreva para a Room: os participantes respondem na sequência"
+                          ? tr("Escreva para a Room: os participantes respondem na sequência")
                           : empty && pendingTemp
-                        ? "Mensagem temporária"
-                        : "Mensagem"
+                        ? tr("Mensagem temporária")
+                        : tr("Mensagem")
           }
-          aria-label="Mensagem"
+          aria-label={tr("Mensagem")}
           aria-expanded={menuOpen}
           aria-autocomplete="list"
           spellCheck
@@ -545,7 +554,7 @@ export function Dock({ empty }: { empty: boolean }) {
           }}
         />
         <div className="composer-bar">
-          <button type="button" className="icon-btn" data-tip="Anexar arquivos" aria-label="Anexar arquivos" onClick={() => fileRef.current?.click()}>
+          <button type="button" className="icon-btn" data-tip={tr("Anexar arquivos")} aria-label={tr("Anexar arquivos")} onClick={() => fileRef.current?.click()}>
             <Icon name="attach" />
           </button>
           <input
@@ -571,20 +580,20 @@ export function Dock({ empty }: { empty: boolean }) {
             }}
             onManage={rt?.family === "redir" ? undefined : () => openSettings("providers")}
             registerToggle={registerToggle}
-            emptyLabel={rt?.family === "redir" ? `Padrão do ${rt.name}` : undefined}
+            emptyLabel={rt?.family === "redir" ? tr("Padrão do {0}", rt.name) : undefined}
             manualModelPrefix={rt?.family === "redir" ? `${rt.id}::` : undefined}
             autoEfforts={rt?.family === "redir" ? rt.efforts : undefined}
           />
           {steering && (
-            <button type="button" className="send-btn is-stop" aria-label="Interromper" data-tip="Interromper" data-kbd="Esc" onClick={() => stop()}>
+            <button type="button" className="send-btn is-stop" aria-label={tr("Interromper")} data-tip={tr("Interromper")} data-kbd="Esc" onClick={() => stop()}>
               <Icon name="stop" />
             </button>
           )}
           <button
             type="submit"
             className={cx("send-btn", generating && !steering && "is-stop")}
-            aria-label={steering ? "Enviar ao agente" : generating ? "Interromper" : "Enviar"}
-            data-tip={steering ? "Enviar ao agente sem interromper" : generating ? "Interromper" : "Enviar"}
+            aria-label={steering ? tr("Enviar ao agente") : generating ? tr("Interromper") : tr("Enviar")}
+            data-tip={steering ? tr("Enviar ao agente sem interromper") : generating ? tr("Interromper") : tr("Enviar")}
             data-kbd={generating && !steering ? "Esc" : undefined}
             disabled={generating ? false : !ready}
           >

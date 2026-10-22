@@ -1,3 +1,4 @@
+import { tr } from "../lib/i18n";
 // CEU Agent: client actions for agents, their tasks, notes and parked approvals
 // (server side in server/agent_mode.py; design in docs/referencias-agent.md).
 import { api, type Agent, type AgentApproval, type AgentFields, type AgentIssue, type AgentNote, type AgentTask, type Conversation, type Schedule, type ServerEvent } from "../api";
@@ -9,26 +10,26 @@ import { confirmDialog, openDialog, toast } from "./ui";
 
 // ------------------------------------------------------------------ labels
 
-export const TASK_STATUS: Record<AgentTask["status"], string> = {
-  idle: "Aguardando",
-  running: "Rodando",
-  waiting: "Espera você",
-  blocked: "Precisa de você",
-  done: "Concluída",
-  error: "Falhou",
-  stopped: "Interrompida",
-  paused: "Pausada",
-};
+export const TASK_STATUS = (): Record<AgentTask["status"], string> => ({
+  idle: tr("Aguardando"),
+  running: tr("Rodando"),
+  waiting: tr("Espera você"),
+  blocked: tr("Precisa de você"),
+  done: tr("Concluída"),
+  error: tr("Falhou"),
+  stopped: tr("Interrompida"),
+  paused: tr("Pausada"),
+});
 
 export function describeSchedule(s: Schedule) {
-  if (!s) return "Sem agenda";
+  if (!s) return tr("Sem agenda");
   if ("every_minutes" in s) {
     const n = s.every_minutes;
-    if (n % 1440 === 0) return n === 1440 ? "Todo dia" : `A cada ${n / 1440} dias`;
-    if (n % 60 === 0) return n === 60 ? "A cada hora" : `A cada ${n / 60} h`;
-    return `A cada ${n} min`;
+    if (n % 1440 === 0) return n === 1440 ? tr("Todo dia") : tr("A cada {0} dias", n / 1440);
+    if (n % 60 === 0) return n === 60 ? tr("A cada hora") : tr("A cada {0} h", n / 60);
+    return tr("A cada {0} min", n);
   }
-  return `Todo dia às ${s.daily_at}`;
+  return tr("Todo dia às {0}", s.daily_at);
 }
 
 /** Where a task sits in the agent's work (mirrors agent_mode.group_of). */
@@ -96,7 +97,7 @@ export async function saveAgent(id: string | null, fields: AgentFields) {
 export async function setAgentPaused(a: Agent, paused: boolean) {
   try {
     await api.updateAgent(a.id, { paused });
-    toast(paused ? `${a.name} pausado: nada roda sozinho até você retomar` : `${a.name} retomado`);
+    toast(paused ? tr("{0} pausado: nada roda sozinho até você retomar", a.name) : tr("{0} retomado", a.name));
   } catch (e: any) {
     toast(e.message);
   }
@@ -106,9 +107,9 @@ export async function setAgentPaused(a: Agent, paused: boolean) {
 
 export async function removeAgent(a: Agent) {
   const ok = await confirmDialog({
-    title: `Excluir ${a.name}?`,
-    body: "A conversa, as tarefas e as notas do agente são apagadas. Os arquivos que ele criou na pasta concedida continuam lá.",
-    confirm: "Excluir",
+    title: tr("Excluir {0}?", a.name),
+    body: tr("A conversa, as tarefas e as notas do agente são apagadas. Os arquivos que ele criou na pasta concedida continuam lá."),
+    confirm: tr("Excluir"),
     danger: true,
   });
   if (!ok) return;
@@ -120,7 +121,7 @@ export async function removeAgent(a: Agent) {
   }
   if (S().current?.conv.agent_id === a.id) newChat();
   refreshAgents();
-  toast("Agente excluído");
+  toast(tr("Agente excluído"));
 }
 
 // ------------------------------------------------------------------ tasks
@@ -134,7 +135,7 @@ export async function createTask(agentId: string, body: { title: string; instruc
 export async function runTask(t: AgentTask) {
   try {
     await api.runTask(t.id);
-    toast(`“${t.title}” começou`);
+    toast(tr("“{0}” começou", t.title));
   } catch (e: any) {
     toast(e.message);
   }
@@ -144,7 +145,7 @@ export async function runTask(t: AgentTask) {
 export async function markTaskDone(t: AgentTask) {
   try {
     await api.updateTask(t.id, { done: true });
-    toast(`“${t.title}” concluída`);
+    toast(tr("“{0}” concluída", t.title));
   } catch (e: any) {
     toast(e.message);
   }
@@ -168,9 +169,9 @@ export async function setTaskPaused(t: AgentTask, paused: boolean) {
 
 export async function removeTask(t: AgentTask) {
   const ok = await confirmDialog({
-    title: `Excluir a tarefa “${t.title}”?`,
-    body: "A tarefa para de rodar e a conversa dela é apagada.",
-    confirm: "Excluir",
+    title: tr("Excluir a tarefa “{0}”?", t.title),
+    body: tr("A tarefa para de rodar e a conversa dela é apagada."),
+    confirm: tr("Excluir"),
     danger: true,
   });
   if (!ok) return;

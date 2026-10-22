@@ -1,3 +1,4 @@
+import { tr, translateLabel, useLanguage } from "../lib/i18n";
 // Rooms (server/rooms.py): a conversation whose participants speak in a configured order. The
 // conductor only fires calls — what's here is choosing who speaks, in which order, for how many
 // rounds, and following who is speaking now. Templates are ready-made configurations.
@@ -16,6 +17,7 @@ const ROUNDS = [1, 2, 3, 4, 5, 6];
 
 /** The order as read aloud: "Luna → Astra → Claude", rounds and the closing speakers. */
 export function Sequence({ room, speaking }: { room: RoomConfig; speaking?: { slot: number; finale: boolean } | null }) {
+  useLanguage();
   return (
     <span className="room-seq">
       {room.order.map((ref, i) => (
@@ -34,7 +36,7 @@ export function Sequence({ room, speaking }: { room: RoomConfig; speaking?: { sl
           <span className={cx("p", speaking?.finale && speaking.slot === i && "is-speaking")}>
             <ModelGlyph model={ref} />
             <Name model={ref} />
-            {i === 0 && <span className="fin">no final</span>}
+            {i === 0 && <span className="fin">{tr("no final")}</span>}
           </span>
         </Fragment>
       ))}
@@ -58,11 +60,12 @@ function useSpeaking() {
 
 /** Topbar: the Room's sequence, with the participant speaking now lit. Opens the editor. */
 export function RoomBadge() {
+  useLanguage();
   const room = useApp((s) => s.current?.conv.room || null);
   const id = useApp((s) => s.current?.conv.id);
   const speaking = useSpeaking();
   if (!room || !id) return null;
-  const tip = speaking ? (speaking.finale ? "Encerramento" : `Rodada ${speaking.turn.round} de ${speaking.turn.rounds} · turno ${speaking.turn.turn} de ${speaking.turn.of}`) : "Participantes e ordem da Room";
+  const tip = speaking ? (speaking.finale ? tr("Encerramento") : tr("Rodada {0} de {1} · turno {2} de {3}", speaking.turn.round, speaking.turn.rounds, speaking.turn.turn, speaking.turn.of)) : tr("Participantes e ordem da Room");
   return (
     <button type="button" className={cx("room-badge", speaking && "is-live")} data-tip={tip} onClick={() => openRoomDialog(id)}>
       <span className="k">Room</span>
@@ -73,6 +76,7 @@ export function RoomBadge() {
 
 /** An empty Room: what will happen when the user writes. */
 export function RoomIntro() {
+  useLanguage();
   const conv = useApp((s) => s.current?.conv);
   if (!conv?.room) return null;
   const room = conv.room;
@@ -82,18 +86,17 @@ export function RoomIntro() {
       <b>Room</b>
       <Sequence room={room} />
       <p>
-        Escreva a abertura. Cada participante responde na ordem, vendo o que os anteriores disseram — {turns} falas no total
-        {room.tools ? ", com as ferramentas do Chat" : ", sem ferramentas"}. Para falar com um só, use <kbd>@</kbd>.
+        {tr("Escreva a abertura. Cada participante responde na ordem, vendo o que os anteriores disseram — ")}{turns} {tr("falas no total")}{room.tools ? tr(", com as ferramentas do Chat") : tr(", sem ferramentas")}{tr(". Para falar com um só, use ")}<kbd>@</kbd>.
       </p>
       <button type="button" className="btn" onClick={() => openRoomDialog(conv.id)}>
-        Editar participantes
-      </button>
+        {tr("Editar participantes")}</button>
     </div>
   );
 }
 
 /** Create or edit a Room. */
 export function RoomDialog({ id, convId }: { id: number; convId: string | null }) {
+  useLanguage();
   const providers = useApp((s) => s.providers);
   const models = allModels(providers);
   const existing = useApp((s) => (convId && s.current?.conv.id === convId ? s.current.conv.room : null));
@@ -159,52 +162,50 @@ export function RoomDialog({ id, convId }: { id: number; convId: string | null }
   );
 
   return (
-    <DialogShell id={id} className="agent-dialog room-dialog" label={convId ? "Editar Room" : "Nova Room"}>
+    <DialogShell id={id} className="agent-dialog room-dialog" label={convId ? tr("Editar Room") : tr("Nova Room")}>
       <form onSubmit={submit} className="agent-form">
-        <h3>{convId ? "Editar Room" : "Nova Room"}</h3>
+        <h3>{convId ? tr("Editar Room") : tr("Nova Room")}</h3>
         <p className="lead">
-          Uma conversa em que vários modelos falam em sequência. Cada um vê o que os anteriores disseram, com autoria; um participante pode
-          aparecer mais de uma vez. Quando você escreve, a sequência roda inteira; com <kbd>@</kbd> você fala com um só.
-        </p>
+          {tr("Uma conversa em que vários modelos falam em sequência. Cada um vê o que os anteriores disseram, com autoria; um participante pode aparecer mais de uma vez. Quando você escreve, a sequência roda inteira; com ")}<kbd>@</kbd> {tr("você fala com um só.")}</p>
         {!convId && (
           <div className="af-grid">
             <label className="af-field">
-              <span>Ponto de partida</span>
+              <span>{tr("Ponto de partida")}</span>
               <select className="select" value={template || ""} onChange={(e) => applyTemplate(e.target.value)}>
-                <option value="">Do zero</option>
+                <option value="">{tr("Do zero")}</option>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name}
+                    {translateLabel(t.name)}
                   </option>
                 ))}
               </select>
             </label>
             <label className="af-field">
-              <span>Nome (opcional)</span>
-              <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder="Gerado após a primeira rodada" />
+              <span>{tr("Nome (opcional)")}</span>
+              <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder={tr("Gerado após a primeira rodada")} />
             </label>
           </div>
         )}
-        {template && <p className="af-note room-tpl-note">{templates.find((t) => t.id === template)?.description}</p>}
+        {template && <p className="af-note room-tpl-note">{translateLabel(templates.find((t) => t.id === template)?.description || "")}</p>}
         <div className="af-field">
-          <span>Ordem de fala</span>
+          <span>{tr("Ordem de fala")}</span>
           <ol className="room-order">
             {order.map((ref, i) => (
               <li key={i}>
                 <span className="n">{i + 1}</span>
                 {ref ? <ModelGlyph model={ref} /> : <span className="glyph-gap" />}
-                <select className="select" value={ref || ""} onChange={(e) => setOrder(order.map((r, j) => (j === i ? e.target.value || null : r)))} aria-label={`Participante ${i + 1}`}>
-                  {!ref && <option value="">{hints?.order[i] ? `Escolha (sugestão: ${hints.order[i]})` : "Escolha um modelo"}</option>}
-                  {ref && !models.some((m) => m.ref === ref) && <option value={ref}>{ref.split("::").pop()} (indisponível)</option>}
+                <select className="select" value={ref || ""} onChange={(e) => setOrder(order.map((r, j) => (j === i ? e.target.value || null : r)))} aria-label={tr("Participante {0}", i + 1)}>
+                  {!ref && <option value="">{hints?.order[i] ? tr("Escolha (sugestão: {0})", hints.order[i]) : tr("Escolha um modelo")}</option>}
+                  {ref && !models.some((m) => m.ref === ref) && <option value={ref}>{ref.split("::").pop()} {tr("(indisponível)")}</option>}
                   {options}
                 </select>
-                <button type="button" className="icon-btn" aria-label="Subir" data-tip="Subir" disabled={i === 0} onClick={() => move(i, -1)}>
+                <button type="button" className="icon-btn" aria-label={tr("Subir")} data-tip={tr("Subir")} disabled={i === 0} onClick={() => move(i, -1)}>
                   <Icon name="arrow-up" />
                 </button>
-                <button type="button" className="icon-btn" aria-label="Descer" data-tip="Descer" disabled={i === order.length - 1} onClick={() => move(i, 1)}>
+                <button type="button" className="icon-btn" aria-label={tr("Descer")} data-tip={tr("Descer")} disabled={i === order.length - 1} onClick={() => move(i, 1)}>
                   <Icon name="arrow-down" />
                 </button>
-                <button type="button" className="icon-btn" aria-label="Remover" data-tip="Remover" disabled={order.length <= 1} onClick={() => setOrder(order.filter((_, j) => j !== i))}>
+                <button type="button" className="icon-btn" aria-label={tr("Remover")} data-tip={tr("Remover")} disabled={order.length <= 1} onClick={() => setOrder(order.filter((_, j) => j !== i))}>
                   <Icon name="close" />
                 </button>
               </li>
@@ -216,24 +217,23 @@ export function RoomDialog({ id, convId }: { id: number; convId: string | null }
             disabled={order.length >= MAX_ORDER}
             onClick={() => setOrder([...order, models.find((m) => !order.includes(m.ref))?.ref || models[0]?.ref || null])}
           >
-            <Icon name="new" /> Adicionar participante
-          </button>
+            <Icon name="new" /> {tr("Adicionar participante")}</button>
         </div>
         <div className="af-grid">
           <label className="af-field">
-            <span>Rodadas</span>
+            <span>{tr("Rodadas")}</span>
             <select className="select" value={rounds} onChange={(e) => setRounds(+e.target.value)}>
               {ROUNDS.map((n) => (
                 <option key={n} value={n}>
-                  {n === 1 ? "1 rodada" : `${n} rodadas`}
+                  {n === 1 ? tr("1 rodada") : tr("{0} rodadas", n)}
                 </option>
               ))}
             </select>
           </label>
           <label className="af-field">
-            <span>No final (opcional)</span>
+            <span>{tr("No final (opcional)")}</span>
             <select className="select" value={finale || ""} onChange={(e) => setFinale(e.target.value || null)}>
-              <option value="">{hints?.finale[0] && !finale ? `Ninguém (sugestão: ${hints.finale[0]})` : "Ninguém"}</option>
+              <option value="">{hints?.finale[0] && !finale ? tr("Ninguém (sugestão: {0})", hints.finale[0]) : tr("Ninguém")}</option>
               {options}
             </select>
           </label>
@@ -241,27 +241,26 @@ export function RoomDialog({ id, convId }: { id: number; convId: string | null }
         <label className="room-tools">
           <input type="checkbox" checked={tools} onChange={(e) => setTools(e.target.checked)} />
           <span>
-            <b>Ferramentas do Chat</b>
-            <span>Os participantes podem rodar código e gravar arquivos na pasta desta conversa. Desligado, eles só conversam.</span>
+            <b>{tr("Ferramentas do Chat")}</b>
+            <span>{tr("Os participantes podem rodar código e gravar arquivos na pasta desta conversa. Desligado, eles só conversam.")}</span>
           </span>
         </label>
         <div className="room-preview" aria-live="polite">
           {preview ? (
             <>
               <Sequence room={preview} />
-              <span className="t">{turns} falas por mensagem sua</span>
+              <span className="t">{turns} {tr("falas por mensagem sua")}</span>
             </>
           ) : (
-            <span className="t">{distinct < 2 && filled.length === order.length ? "Escolha pelo menos dois modelos diferentes." : "Escolha um modelo para cada lugar."}</span>
+            <span className="t">{distinct < 2 && filled.length === order.length ? tr("Escolha pelo menos dois modelos diferentes.") : tr("Escolha um modelo para cada lugar.")}</span>
           )}
         </div>
-        {running && <p className="af-note">A Room está falando agora: a nova configuração vale a partir da próxima mensagem.</p>}
+        {running && <p className="af-note">{tr("A Room está falando agora: a nova configuração vale a partir da próxima mensagem.")}</p>}
         <div className="row">
           <button type="button" className="btn ghost" onClick={close}>
-            Cancelar
-          </button>
+            {tr("Cancelar")}</button>
           <button type="submit" className="btn primary" disabled={busy || !preview}>
-            {convId ? "Salvar" : "Criar Room"}
+            {convId ? tr("Salvar") : tr("Criar Room")}
           </button>
         </div>
       </form>

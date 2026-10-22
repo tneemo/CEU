@@ -1,3 +1,4 @@
+import { getLocale, tr, useLanguage } from "../lib/i18n";
 // Message thread (port of the rendering half of web/js/thread.js).
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { apiUrl, type Attachment, type CallSpec, type Message } from "../api";
@@ -21,6 +22,7 @@ function attPath(a: Attachment, convId: string) {
 }
 
 function Attachments({ atts, convId }: { atts: Attachment[]; convId: string }) {
+  useLanguage();
   return (
     <div className="msg-atts">
       {atts.map((a) => {
@@ -65,6 +67,7 @@ function Attachments({ atts, convId }: { atts: Attachment[]; convId: string }) {
 }
 
 function IconBtn({ name, tip, onClick, disabled, on }: { name: string; tip: string; onClick: (e: React.MouseEvent<HTMLButtonElement>) => void; disabled?: boolean; on?: boolean }) {
+  useLanguage();
   return (
     <button type="button" className={cx("icon-btn", on && "is-on")} aria-label={tip} aria-pressed={on} data-tip={tip} onClick={onClick} disabled={disabled}>
       <Icon name={name} />
@@ -73,6 +76,7 @@ function IconBtn({ name, tip, onClick, disabled, on }: { name: string; tip: stri
 }
 
 function CopyBtn({ text }: { text: string }) {
+  useLanguage();
   const [ok, setOk] = useState(false);
   useEffect(() => {
     if (!ok) return;
@@ -83,8 +87,8 @@ function CopyBtn({ text }: { text: string }) {
     <button
       type="button"
       className={cx("icon-btn", ok && "is-on")}
-      aria-label="Copiar"
-      data-tip="Copiar"
+      aria-label={tr("Copiar")}
+      data-tip={tr("Copiar")}
       onClick={async () => {
         if (await copyText(text)) setOk(true);
       }}
@@ -95,21 +99,23 @@ function CopyBtn({ text }: { text: string }) {
 }
 
 function BranchNav({ cur, m }: { cur: Current; m: Message }) {
+  useLanguage();
   const sibs = siblings(cur, m);
   if (sibs.length < 2) return <span />;
   const i = sibs.findIndex((x) => x.id === m.id);
   return (
     <span className="branch">
-      <IconBtn name="chevron-left" tip="Versão anterior" disabled={i <= 0} onClick={() => switchBranch(sibs[i - 1])} />
+      <IconBtn name="chevron-left" tip={tr("Versão anterior")} disabled={i <= 0} onClick={() => switchBranch(sibs[i - 1])} />
       <span>
         {i + 1} / {sibs.length}
       </span>
-      <IconBtn name="chevron-right" tip="Próxima versão" disabled={i >= sibs.length - 1} onClick={() => switchBranch(sibs[i + 1])} />
+      <IconBtn name="chevron-right" tip={tr("Próxima versão")} disabled={i >= sibs.length - 1} onClick={() => switchBranch(sibs[i + 1])} />
     </span>
   );
 }
 
 export function Cube() {
+  useLanguage();
   return (
     <span className="cube-wrap">
       <span className="cube">
@@ -125,13 +131,16 @@ export function Cube() {
 }
 
 const Markdown = memo(function Markdown({ src, streaming, className = "md" }: { src: string; streaming?: boolean; className?: string }) {
-  const html = useMemo(() => renderMarkdown(src), [src]);
+  const language = useLanguage();
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- The code-copy control is translated inside rendered Markdown.
+  const html = useMemo(() => renderMarkdown(src), [src, language]);
   return <div className={cx(className, streaming && "is-streaming")} dangerouslySetInnerHTML={{ __html: html }} />;
 });
 
 // ------------------------------------------------------------------ user message
 
 function EditBox({ m }: { m: Message }) {
+  useLanguage();
   const ref = useRef<HTMLTextAreaElement>(null);
   const sendKey = useApp((s) => s.settings.send_key);
   useEffect(() => {
@@ -155,7 +164,7 @@ function EditBox({ m }: { m: Message }) {
       <textarea
         ref={ref}
         rows={1}
-        aria-label="Editar mensagem"
+        aria-label={tr("Editar mensagem")}
         defaultValue={m.content}
         onInput={(e) => autosize(e.currentTarget, innerHeight * 0.5)}
         onKeyDown={(e) => {
@@ -172,17 +181,16 @@ function EditBox({ m }: { m: Message }) {
       />
       <div className="row">
         <button type="button" className="btn ghost" onClick={cancel}>
-          Cancelar
-        </button>
+          {tr("Cancelar")}</button>
         <button type="button" className="btn primary" onClick={submit}>
-          Enviar
-        </button>
+          {tr("Enviar")}</button>
       </div>
     </div>
   );
 }
 
 function Bubble({ text }: { text: string }) {
+  useLanguage();
   const ref = useRef<HTMLDivElement>(null);
   const [clampable, setClampable] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -197,7 +205,7 @@ function Bubble({ text }: { text: string }) {
       </div>
       {clampable && (
         <button type="button" className="expand-btn" onClick={() => setExpanded((x) => !x)}>
-          {expanded ? "Mostrar menos" : "Mostrar mais"}
+          {expanded ? tr("Mostrar menos") : tr("Mostrar mais")}
         </button>
       )}
     </>
@@ -208,10 +216,11 @@ const delegated = (call: CallSpec | null | undefined) => !!call && call.surface 
 
 /** Who a user message was for: a model (`@modelo`) or a surface the work was delegated to. */
 function CallLabel({ call }: { call: CallSpec }) {
+  useLanguage();
   const ref = refOfCall(call);
   return (
     <div className="msg-call">
-      <span>{delegated(call) ? "delegado a" : "para"}</span>
+      <span>{delegated(call) ? tr("delegado a") : tr("para")}</span>
       <ModelGlyph model={ref} />
       <b>
         <Name model={ref} />
@@ -222,6 +231,7 @@ function CallLabel({ call }: { call: CallSpec }) {
 
 /** Opens the Code session / agent task a delegated reply ran in, at the reply. */
 function OpenTarget({ call, label }: { call: CallSpec; label: string }) {
+  useLanguage();
   if (call.surface === "chat" || !call.conversation_id) return null;
   const { conversation_id, message_id } = call;
   return (
@@ -235,6 +245,7 @@ function OpenTarget({ call, label }: { call: CallSpec; label: string }) {
 /** Who is speaking, once a conversation has more than one participant. A delegated reply is its
  * surface (with the model that did the work); a Room's turn says where it is in the sequence. */
 function Speaker({ m }: { m: Message }) {
+  useLanguage();
   const call = m.call;
   const ref = delegated(call) ? refOfCall(call) : m.model;
   const turn = call?.surface === "chat" ? call.room : null;
@@ -249,22 +260,23 @@ function Speaker({ m }: { m: Message }) {
           · <Name model={m.model} />
         </span>
       )}
-      {turn && <span className="via">· {turn.finale ? "encerramento" : turn.rounds > 1 ? `rodada ${turn.round}` : `${turn.turn}/${turn.of}`}</span>}
-      {delegated(call) && m.status !== "streaming" && <OpenTarget call={call!} label={call!.surface === "code" ? "Abrir sessão" : "Abrir tarefa"} />}
+      {turn && <span className="via">· {turn.finale ? tr("encerramento") : turn.rounds > 1 ? tr("rodada {0}", turn.round) : `${turn.turn}/${turn.of}`}</span>}
+      {delegated(call) && m.status !== "streaming" && <OpenTarget call={call!} label={call!.surface === "code" ? tr("Abrir sessão") : tr("Abrir tarefa")} />}
     </div>
   );
 }
 
 /** A delegated reply while the work runs elsewhere: where, a way to follow it, and its approval cards. */
 function DelegateCard({ m }: { m: Message }) {
+  useLanguage();
   const pending = useApp((s) => (s.approval?.messageId === m.id ? s.approval.request : null));
   const call = m.call!;
   return (
     <div className="delegate-card">
       <div className="dc-line">
         {pending ? <span className="pulse" aria-hidden="true" /> : <Cube />}
-        <span className="label">{pending ? "Aguardando sua aprovação" : call.surface === "code" ? "Trabalhando na sessão de Code" : "O agente está trabalhando na tarefa"}</span>
-        <OpenTarget call={call} label="Acompanhar" />
+        <span className="label">{pending ? tr("Aguardando sua aprovação") : call.surface === "code" ? tr("Trabalhando na sessão de Code") : tr("O agente está trabalhando na tarefa")}</span>
+        <OpenTarget call={call} label={tr("Acompanhar")} />
       </div>
       {pending && <ApprovalCard req={pending} />}
     </div>
@@ -272,6 +284,7 @@ function DelegateCard({ m }: { m: Message }) {
 }
 
 function UserMsg({ cur, m, last }: { cur: Current; m: Message; last: boolean }) {
+  useLanguage();
   const editing = useApp((s) => s.editingId === m.id);
   return (
     <div className={cx("msg user", last && "is-last")} data-id={m.id}>
@@ -283,11 +296,11 @@ function UserMsg({ cur, m, last }: { cur: Current; m: Message; last: boolean }) 
         <>
           {m.content && <Bubble text={m.content} />}
           <div className="actions">
-            <span className="when" title={new Date(m.created_at * 1000).toLocaleString("pt-BR")}>
+            <span className="when" title={new Date(m.created_at * 1000).toLocaleString(getLocale())}>
               {relTime(m.created_at)}
             </span>
             <BranchNav cur={cur} m={m} />
-            <IconBtn name="edit" tip="Editar" onClick={() => startEdit(m)} />
+            <IconBtn name="edit" tip={tr("Editar")} onClick={() => startEdit(m)} />
             <CopyBtn text={m.content} />
           </div>
         </>
@@ -299,6 +312,7 @@ function UserMsg({ cur, m, last }: { cur: Current; m: Message; last: boolean }) 
 // ------------------------------------------------------------------ tool call / result
 
 function ToolMsg({ cur, m, last }: { cur: Current; m: Message; last: boolean }) {
+  useLanguage();
   const isResult = m.role === "tool_result";
   const hasError = isResult && /ERRO:/.test(m.notice || "");
   return (
@@ -306,7 +320,7 @@ function ToolMsg({ cur, m, last }: { cur: Current; m: Message; last: boolean }) 
       {m.content?.trim() && <Markdown src={m.content} />}
       <div className={cx("tool-card", isResult && "is-result", hasError && "is-error")}>
         <Ic name={hasError ? "alert" : isResult ? "check" : "cube"} />
-        <pre className="body">{m.notice || (isResult ? "(sem saída)" : "Executando ferramenta…")}</pre>
+        <pre className="body">{m.notice || (isResult ? tr("(sem saída)") : tr("Executando ferramenta…"))}</pre>
       </div>
       {isResult && !!m.attachments?.length && <Attachments atts={m.attachments} convId={cur.conv.id} />}
     </div>
@@ -326,6 +340,7 @@ function secs(ms: number) {
 }
 
 function Reasoning({ m, live }: { m: Message; live: boolean }) {
+  useLanguage();
   const [open, setOpen] = useState(false);
   return (
     <div className={cx("reasoning", open && "is-open")}>
@@ -333,13 +348,13 @@ function Reasoning({ m, live }: { m: Message; live: boolean }) {
         {live ? (
           <>
             <Cube />
-            <span className="label">Pensando</span>
+            <span className="label">{tr("Pensando")}</span>
             <span className="live">{lastLine(m.reasoning)}</span>
           </>
         ) : (
           <>
             <Ic name="chevron-right" className="chev" />
-            <span>{m.reasoning_ms ? `Pensou por ${secs(m.reasoning_ms)}` : "Raciocínio"}</span>
+            <span>{m.reasoning_ms ? tr("Pensou por {0}", secs(m.reasoning_ms)) : tr("Raciocínio")}</span>
           </>
         )}
       </button>
@@ -349,6 +364,7 @@ function Reasoning({ m, live }: { m: Message; live: boolean }) {
 }
 
 function ModelMeta({ m }: { m: Message }) {
+  useLanguage();
   const allProviders = useApp((s) => s.providers);
   // a code session under an external harness: only its models apply, and "no model" is its own default
   const rt = useApp((s) => (s.current?.conv.kind === "code" ? currentRuntime(s) : null));
@@ -358,15 +374,15 @@ function ModelMeta({ m }: { m: Message }) {
   return (
     <button
       type="button"
-      data-tip={used ? `Modelo usado: ${used}${requested && requested !== used ? ` · solicitado: ${requested}` : ""}` : "Regenerar com outro modelo"}
+      data-tip={used ? tr("Modelo usado: {0}{1}", used, requested && requested !== used ? tr(" · solicitado: {0}", requested) : "") : tr("Regenerar com outro modelo")}
       style={{ color: "inherit" }}
       onClick={(e) => {
         openMenu({
           anchor: e.currentTarget,
           placement: "top-start",
           items: [
-            { header: "Regenerar com" },
-            ...(rt?.family === "redir" ? [{ label: "Auto", sub: `Padrão do ${rt.name}`, checked: !m.model, onSelect: () => regenerate(m, null) }] : []),
+            { header: tr("Regenerar com") },
+            ...(rt?.family === "redir" ? [{ label: "Auto", sub: tr("Padrão do {0}", rt.name), checked: !m.model, onSelect: () => regenerate(m, null) }] : []),
             ...allModels(providers).map((x) => ({
               label: x.name,
               sub: x.provider.name,
@@ -383,6 +399,7 @@ function ModelMeta({ m }: { m: Message }) {
 }
 
 function AssistantMsg({ cur, m, last, multi }: { cur: Current; m: Message; last: boolean; multi?: boolean }) {
+  useLanguage();
   const streaming = m.status === "streaming";
   const speaking = useApp((s) => s.speakingId === m.id);
   const allProviders = useApp((s) => s.providers);
@@ -394,9 +411,9 @@ function AssistantMsg({ cur, m, last, multi }: { cur: Current; m: Message; last:
   const startedEmpty = useRef(!m.content);
   const u = m.usage;
   const stats: string[] = [];
-  if (u?.output) stats.push(`${u.output.toLocaleString("pt-BR")} tokens`);
-  if (u?.tps) stats.push(`${u.tps.toLocaleString("pt-BR")} tok/s`);
-  if (u?.ttft_ms) stats.push(`${(u.ttft_ms / 1000).toFixed(1)}s até o 1º token`);
+  if (u?.output) stats.push(`${u.output.toLocaleString(getLocale())} tokens`);
+  if (u?.tps) stats.push(`${u.tps.toLocaleString(getLocale())} tok/s`);
+  if (u?.ttft_ms) stats.push(tr("{0}s até o 1º token", (u.ttft_ms / 1000).toFixed(1)));
 
   return (
     <div className={cx("msg assistant", last && "is-last", startedEmpty.current && streaming && m.content && "is-entering")} data-id={m.id}>
@@ -408,7 +425,7 @@ function AssistantMsg({ cur, m, last, multi }: { cur: Current; m: Message; last:
         showPending && (
           <div className="pending">
             <Cube />
-            <span className="label">Gerando</span>
+            <span className="label">{tr("Gerando")}</span>
           </div>
         )
       )}
@@ -421,43 +438,42 @@ function AssistantMsg({ cur, m, last, multi }: { cur: Current; m: Message; last:
               <div className="error-card">
                 <Ic name="alert" />
                 <div className="body">
-                  {m.error || "Algo deu errado."}
+                  {m.error || tr("Algo deu errado.")}
                   <br />
                   <button type="button" className="btn" onClick={() => regenerate(m)}>
                     <Ic name="retry" />
-                    Tentar novamente
-                  </button>
+                    {tr("Tentar novamente")}</button>
                 </div>
               </div>
             )}
           </div>
           <div className="actions">
             {m.content && <CopyBtn text={m.content} />}
-            {m.content && canSpeak() && <IconBtn name="speaker" tip={speaking ? "Parar leitura" : "Ler em voz alta"} on={speaking} onClick={() => speak(m)} />}
+            {m.content && canSpeak() && <IconBtn name="speaker" tip={speaking ? tr("Parar leitura") : tr("Ler em voz alta")} on={speaking} onClick={() => speak(m)} />}
             {m.status === "complete" && (
               <>
-                <IconBtn name="thumb-up" tip="Boa resposta" on={m.feedback === 1} onClick={() => rate(m, 1)} />
-                <IconBtn name="thumb-down" tip="Resposta ruim" on={m.feedback === -1} onClick={() => rate(m, -1)} />
+                <IconBtn name="thumb-up" tip={tr("Boa resposta")} on={m.feedback === 1} onClick={() => rate(m, 1)} />
+                <IconBtn name="thumb-down" tip={tr("Resposta ruim")} on={m.feedback === -1} onClick={() => rate(m, -1)} />
               </>
             )}
-            <IconBtn name="retry" tip="Regenerar" onClick={() => regenerate(m)} />
+            <IconBtn name="retry" tip={tr("Regenerar")} onClick={() => regenerate(m)} />
             <IconBtn
               name="more"
-              tip="Mais ações"
+              tip={tr("Mais ações")}
               onClick={(e) =>
                 openMenu({
                   anchor: e.currentTarget,
                   placement: "top-start",
                   items: [
-                    { label: "Ramificar em nova conversa", icon: "branch", onSelect: () => branchFrom(m) },
-                    { label: "Copiar como Markdown", icon: "copy", disabled: !m.content, onSelect: () => copyText(m.content).then(() => toast("Resposta copiada")) },
+                    { label: tr("Ramificar em nova conversa"), icon: "branch", onSelect: () => branchFrom(m) },
+                    { label: tr("Copiar como Markdown"), icon: "copy", disabled: !m.content, onSelect: () => copyText(m.content).then(() => toast(tr("Resposta copiada"))) },
                     // delegated work is asked again of the same surface, not of another model
                     ...(delegated(m.call)
                       ? []
                       : [
                           "sep" as const,
-                          { header: "Regenerar com" },
-                          ...(rt?.family === "redir" ? [{ label: "Auto", sub: `Padrão do ${rt.name}`, checked: !m.model, onSelect: () => regenerate(m, null) }] : []),
+                          { header: tr("Regenerar com") },
+                          ...(rt?.family === "redir" ? [{ label: "Auto", sub: tr("Padrão do {0}", rt.name), checked: !m.model, onSelect: () => regenerate(m, null) }] : []),
                           ...allModels(modelProviders).map((x) => ({ label: x.name, sub: x.provider.name, checked: x.ref === m.model, onSelect: () => regenerate(m, x.ref) })),
                         ]),
                   ],
@@ -469,8 +485,7 @@ function AssistantMsg({ cur, m, last, multi }: { cur: Current; m: Message; last:
               <ModelMeta m={m} />
               {m.status === "stopped" && (
                 <>
-                  <span className="sep">·</span>Interrompido
-                </>
+                  <span className="sep">·</span>{tr("Interrompido")}</>
               )}
               {stats.length > 0 && (
                 <span className="stat">
@@ -504,6 +519,7 @@ function renderMsg(cur: Current, m: Message, last: boolean, multi = false) {
 
 /** A code-session turn: prose between collapsible runs of tool calls, then the changes card. */
 function CodeTurn({ cur, msgs, lastId }: { cur: Current; msgs: Message[]; lastId: string | undefined }) {
+  useLanguage();
   const toolLive = useApp((s) => s.toolLive);
   const segs = useMemo(() => codeSegments(msgs, toolLive), [msgs, toolLive]);
   const tail = msgs[msgs.length - 1];
@@ -527,9 +543,8 @@ function CodeTurn({ cur, msgs, lastId }: { cur: Current; msgs: Message[]; lastId
       {planDone && (
         <div className="plan-actions">
           <button type="button" className="btn primary" onClick={() => runPlan()}>
-            Executar o plano
-          </button>
-          <span>Muda para “{modeInfo(planExecMode()).label}” e pede a execução. Ou escreva ajustes ao plano.</span>
+            {tr("Executar o plano")}</button>
+          <span>{tr("Muda para “")}{modeInfo(planExecMode()).label}{tr("” e pede a execução. Ou escreva ajustes ao plano.")}</span>
         </div>
       )}
     </>
@@ -537,6 +552,7 @@ function CodeTurn({ cur, msgs, lastId }: { cur: Current; msgs: Message[]; lastId
 }
 
 export function Thread() {
+  useLanguage();
   const cur = useApp((s) => s.current);
   const openSeq = useApp((s) => s.openSeq);
   const threadRef = useRef<HTMLDivElement>(null);
@@ -650,8 +666,8 @@ export function Thread() {
     if (btn) {
       const code = btn.closest(".code-block")?.querySelector("pre code")?.textContent || "";
       if (await copyText(code)) {
-        btn.innerHTML = iconHtml("check") + "<span>Copiado</span>";
-        setTimeout(() => (btn.innerHTML = iconHtml("copy") + "<span>Copiar</span>"), 1500);
+        btn.innerHTML = iconHtml("check") + tr("<span>Copiado</span>");
+        setTimeout(() => (btn.innerHTML = iconHtml("copy") + tr("<span>Copiar</span>")), 1500);
       }
       return;
     }
@@ -682,13 +698,13 @@ export function Thread() {
             ))}
         </div>
       </div>
-      <nav className={cx("rail", showRail && "is-visible")} aria-label="Mapa da conversa" ref={railRef}>
+      <nav className={cx("rail", showRail && "is-visible")} aria-label={tr("Mapa da conversa")} ref={railRef}>
         {showRail &&
           path.filter((m) => m.role !== "tool_call" && m.role !== "tool_result").map((m) => {
             const isUser = m.role === "user";
             const len = (m.content || "").length;
             const w = isUser ? 7 : Math.round(9 + Math.min(13, Math.log2(len / 80 + 1) * 3));
-            const snippet = (m.content || "").replace(/\s+/g, " ").slice(0, 60) || (isUser ? "Mensagem" : "Resposta");
+            const snippet = (m.content || "").replace(/\s+/g, " ").slice(0, 60) || (isUser ? tr("Mensagem") : tr("Resposta"));
             return (
               <button
                 key={m.id}
@@ -706,7 +722,7 @@ export function Thread() {
             );
           })}
       </nav>
-      <button className={cx("to-bottom", toBottom && "is-visible")} aria-label="Ir para o fim" tabIndex={-1} onClick={scrollToEnd}>
+      <button className={cx("to-bottom", toBottom && "is-visible")} aria-label={tr("Ir para o fim")} tabIndex={-1} onClick={scrollToEnd}>
         <Icon name="arrow-down" />
       </button>
     </>

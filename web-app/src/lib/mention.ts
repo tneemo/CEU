@@ -1,3 +1,4 @@
+import { tr } from "../lib/i18n";
 // `@` in the composer: finding the token being typed and the participants it can mean — models
 // (answer inline) and CEU surfaces (Code on a folder, an Agent), to which the work is delegated.
 // Pure helpers; the menu and the chip live in components/Participant.tsx and Composer.tsx.
@@ -24,7 +25,7 @@ export function refOfCall(call: CallSpec | null | undefined) {
 /** How a participant is named in the UI (mirrors server/calls.label). */
 export function participantLabel(ref: string | null | undefined, s: AppState) {
   if (ref?.startsWith("code:")) return "Code · " + folderOf(ref.slice(5));
-  if (ref?.startsWith("agent:")) return "Agent · " + (s.agents.find((a) => a.id === ref.slice(6))?.name || "removido");
+  if (ref?.startsWith("agent:")) return "Agent · " + (s.agents.find((a) => a.id === ref.slice(6))?.name || tr("removido"));
   return participantName(prettyModel(ref, s.providers));
 }
 
@@ -80,7 +81,7 @@ export function matchSurfaces(query: string, projects: { path: string; name: str
     if (s >= 0) code.push({ t: { kind: "code", key: "code:" + p.path, path: p.path, name: p.name }, s });
   }
   const codeList = best(code).slice(0, codeWord >= 0 ? each - 1 : each);
-  if (codeWord >= 0) codeList.push({ kind: "code", key: "code:?", path: null, name: "Escolher pasta…" });
+  if (codeWord >= 0) codeList.push({ kind: "code", key: "code:?", path: null, name: tr("Escolher pasta…") });
   const agentWord = score(query, ["Agent", "agente"]);
   const agent: { t: Target; s: number }[] = [];
   for (const a of agents) {

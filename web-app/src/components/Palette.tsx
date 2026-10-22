@@ -1,3 +1,4 @@
+import { tr, useLanguage } from "../lib/i18n";
 // Search + command palette (port of web/js/palette.js).
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, type SearchResult } from "../api";
@@ -19,6 +20,7 @@ const score = (text: string, nq: string) => {
 };
 
 function Mark({ text, q }: { text: string; q: string }) {
+  useLanguage();
   if (!q) return <>{text}</>;
   const i = norm(text).indexOf(norm(q));
   if (i < 0) return <>{text}</>;
@@ -42,6 +44,7 @@ interface Row {
 }
 
 export function Palette({ id }: { id: number }) {
+  const language = useLanguage();
   const convs = useApp((s) => s.convs);
   const current = useApp((s) => s.current);
   const [q, setQ] = useState("");
@@ -75,24 +78,24 @@ export function Palette({ id }: { id: number }) {
     const nq = norm(tq);
     const dark = document.documentElement.dataset.theme === "dark";
     const actions = [
-      { label: "Nova conversa", icon: "new", run: () => newChat({ code: false }) },
-      { label: "Nova sessão de código", icon: "code", run: () => newCodeSession() },
-      { label: "Ir para Chat", icon: "chat", kbd: "Ctrl ⇧ 1", run: () => goArea("chat") },
-      { label: "Ir para Code", icon: "code", kbd: "Ctrl ⇧ 2", run: () => goArea("code") },
-      { label: "Trocar modelo", icon: "cube", kbd: "Ctrl .", run: () => setTimeout(() => view.openModelPicker(), 0) },
-      { label: dark ? "Usar tema claro" : "Usar tema escuro", icon: dark ? "sun" : "moon", run: () => toggleTheme() },
-      { label: "Alternar barra lateral", icon: "sidebar", kbd: "Ctrl B", run: () => toggleSidebar() },
-      { label: "Configurações", icon: "settings", kbd: "Ctrl ,", run: () => openSettings("general") },
-      { label: "Provedores e modelos", icon: "plug", run: () => openSettings("providers") },
-      { label: "Personalização e instruções", icon: "user", run: () => openSettings("personalization") },
-      { label: "Atalhos de teclado", icon: "keyboard", kbd: "Ctrl /", run: () => openSettings("shortcuts") },
-      { label: "Nova conversa temporária", icon: "ghost", run: () => setTemporary(true) },
-      { label: "Aparência", icon: "palette", run: () => openSettings("appearance") },
-      { label: "Memória", icon: "memory", run: () => openSettings("memory") },
-      { label: "Uso e estatísticas", icon: "gauge", run: () => openSettings("usage") },
-      { label: "Conversas arquivadas e exportação", icon: "archive", run: () => openSettings("data") },
-      ...(current ? [{ label: "Exportar conversa como Markdown", icon: "download", run: () => exportConversation(current.conv) }] : []),
-      ...(current && !current.conv.temporary ? [{ label: "Arquivar conversa", icon: "archive", run: () => setArchived(current.conv, true) }] : []),
+      { label: tr("Nova conversa"), icon: "new", run: () => newChat({ code: false }) },
+      { label: tr("Nova sessão de código"), icon: "code", run: () => newCodeSession() },
+      { label: tr("Ir para Chat"), icon: "chat", kbd: "Ctrl ⇧ 1", run: () => goArea("chat") },
+      { label: tr("Ir para Code"), icon: "code", kbd: "Ctrl ⇧ 2", run: () => goArea("code") },
+      { label: tr("Trocar modelo"), icon: "cube", kbd: "Ctrl .", run: () => setTimeout(() => view.openModelPicker(), 0) },
+      { label: dark ? tr("Usar tema claro") : tr("Usar tema escuro"), icon: dark ? "sun" : "moon", run: () => toggleTheme() },
+      { label: tr("Alternar barra lateral"), icon: "sidebar", kbd: "Ctrl B", run: () => toggleSidebar() },
+      { label: tr("Configurações"), icon: "settings", kbd: "Ctrl ,", run: () => openSettings("general") },
+      { label: tr("Provedores e modelos"), icon: "plug", run: () => openSettings("providers") },
+      { label: tr("Personalização e instruções"), icon: "user", run: () => openSettings("personalization") },
+      { label: tr("Atalhos de teclado"), icon: "keyboard", kbd: "Ctrl /", run: () => openSettings("shortcuts") },
+      { label: tr("Nova conversa temporária"), icon: "ghost", run: () => setTemporary(true) },
+      { label: tr("Aparência"), icon: "palette", run: () => openSettings("appearance") },
+      { label: tr("Memória"), icon: "memory", run: () => openSettings("memory") },
+      { label: tr("Uso e estatísticas"), icon: "gauge", run: () => openSettings("usage") },
+      { label: tr("Conversas arquivadas e exportação"), icon: "archive", run: () => openSettings("data") },
+      ...(current ? [{ label: tr("Exportar conversa como Markdown"), icon: "download", run: () => exportConversation(current.conv) }] : []),
+      ...(current && !current.conv.temporary ? [{ label: tr("Arquivar conversa"), icon: "archive", run: () => setArchived(current.conv, true) }] : []),
     ];
     const byScore = <T,>(get: (x: T) => string) => (a: T, b: T) => score(get(b), nq) - score(get(a), nq);
     const acts = actions.filter((a) => !tq || score(a.label, nq)).sort(byScore((a) => a.label));
@@ -104,14 +107,14 @@ export function Palette({ id }: { id: number }) {
     const convRows: Row[] = cs.map((c) => ({
       key: "c" + c.id,
       icon: c.kind === "code" ? "code" : "chat",
-      title: <Mark text={c.title || "Nova conversa"} q={tq} />,
+      title: <Mark text={c.title || tr("Nova conversa")} q={tq} />,
       when: relTime(c.updated_at),
       run: () => openConversation(c.id),
     }));
     const msgRows: Row[] = msgs.map((r) => ({
       key: "m" + r.message_id,
       icon: "search",
-      title: r.title || "Conversa",
+      title: r.title || tr("Conversa"),
       snippet: <Mark text={r.snippet} q={tq} />,
       when: relTime(r.updated_at),
       run: () => openConversation(r.conversation_id, { messageId: r.message_id }),
@@ -119,16 +122,17 @@ export function Palette({ id }: { id: number }) {
     const actRows: Row[] = acts.map((a) => ({ key: "a" + a.label, icon: a.icon, title: <Mark text={a.label} q={tq} />, k: a.kbd, run: a.run }));
     const secs: [string, Row[], number][] = tq
       ? [
-          ["Conversas", convRows, Math.max(0, ...cs.map((c) => score(c.title, nq)))],
-          ["Nas mensagens", msgRows, msgRows.length ? 0.5 : 0],
-          ["Ações", actRows, Math.max(0, ...acts.map((a) => score(a.label, nq)))],
+          [tr("Conversas"), convRows, Math.max(0, ...cs.map((c) => score(c.title, nq)))],
+          [tr("Nas mensagens"), msgRows, msgRows.length ? 0.5 : 0],
+          [tr("Ações"), actRows, Math.max(0, ...acts.map((a) => score(a.label, nq)))],
         ]
       : [
-          ["Recentes", convRows, 1],
-          ["Ações", actRows, 1],
+          [tr("Recentes"), convRows, 1],
+          [tr("Ações"), actRows, 1],
         ];
     return secs.sort((a, b) => b[2] - a[2]).filter(([, rows]) => rows.length);
-  }, [tq, convs, current, server]);
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- Rebuild translated actions when the locale changes.
+  }, [tq, convs, current, server, language]);
 
   useLayoutEffect(() => navRef.current?.set(0), [sections]);
 
@@ -137,8 +141,8 @@ export function Palette({ id }: { id: number }) {
       <div className="palette-input">
         <Ic name="search" />
         <input
-          placeholder="Buscar conversas ou executar uma ação…"
-          aria-label="Buscar"
+          placeholder={tr("Buscar conversas ou executar uma ação…")}
+          aria-label={tr("Buscar")}
           autoFocus
           spellCheck={false}
           value={q}
@@ -172,19 +176,16 @@ export function Palette({ id }: { id: number }) {
             </button>
           )),
         ])}
-        {!sections.length && <div className="palette-empty">{tq ? `Nada encontrado para “${tq}”.` : "Nenhuma conversa ainda."}</div>}
+        {!sections.length && <div className="palette-empty">{tq ? tr("Nada encontrado para “{0}”.", tq) : tr("Nenhuma conversa ainda.")}</div>}
       </div>
       <div className="palette-foot">
         <span>
           <kbd>↑</kbd>
-          <kbd>↓</kbd>navegar
-        </span>
+          <kbd>↓</kbd>{tr("navegar")}</span>
         <span>
-          <kbd>↵</kbd>abrir
-        </span>
+          <kbd>↵</kbd>{tr("abrir")}</span>
         <span>
-          <kbd>esc</kbd>fechar
-        </span>
+          <kbd>esc</kbd>{tr("fechar")}</span>
       </div>
     </DialogShell>
   );

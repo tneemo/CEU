@@ -4,6 +4,9 @@ Prepared locally on **2026-10-22**. No repository, tag or release was published.
 The application version remains sourced from `web-app/src-tauri/tauri.conf.json`;
 the existing RC version was not bumped during preparation.
 
+This audit records the state before the subsequent English UI implementation.
+For current language support, see [known limitations](limitations.md).
+
 ## Assessment before changes
 
 The product brief describes a local workspace for conversations, tools and

@@ -54,7 +54,7 @@ Geral (idioma, ditado) · Aparência (modo com miniaturas; tema; **destaque**: P
 
 | Seção CEU | Campos | Status |
 |---|---|---|
-| Geral | idioma da interface; envio (Enter / Ctrl Enter); modelo padrão; modelo de títulos; conversa temporária por padrão | idioma = mock; resto real |
+| Geral | idioma da interface; envio (Enter / Ctrl Enter); modelo padrão; modelo de títulos; conversa temporária por padrão | real; inglês por padrão e português do Brasil disponíveis no React/Tauri |
 | Aparência | modo (miniaturas); destaque (8 cores); fonte do chat (Sans/Serif/Mono/Sistema); tamanho do texto; tamanho do código; largura da conversa; movimento (Sistema/Reduzido/Completo); espaço animado | real |
 | Personalização | instruções; apelido; ocupação; mais sobre você; estilo e tom; cordialidade, entusiasmo, títulos e listas, emoji | real (compõem o prompt de sistema) |
 | Memória | usar memória; consultar conversas anteriores; lista editável de memórias | memória = real (entra no prompt); consulta = mock |

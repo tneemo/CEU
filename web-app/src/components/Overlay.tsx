@@ -1,3 +1,4 @@
+import { tr, useLanguage } from "../lib/i18n";
 // Popover menus, modal dialog shell, toasts and tooltips (port of web/js/ui.js).
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { Ic } from "../lib/icons";
@@ -69,6 +70,7 @@ export function listNav(container: HTMLElement) {
 // ------------------------------------------------------------------ menu
 
 function MenuRow({ it }: { it: MenuItem }) {
+  useLanguage();
   if (it === "sep") return <div className="menu-sep" />;
   if ("header" in it) return <div className="menu-h">{it.header}</div>;
   return (
@@ -94,6 +96,7 @@ function MenuRow({ it }: { it: MenuItem }) {
 }
 
 export function MenuLayer() {
+  useLanguage();
   const menu = useUi((s) => s.menu);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -160,6 +163,7 @@ export function MenuLayer() {
 // ------------------------------------------------------------------ dialog shell
 
 export function DialogShell({ id, className, label, children }: { id: number; className: string; label?: string; children: ReactNode }) {
+  useLanguage();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current!;
@@ -203,6 +207,7 @@ export function DialogShell({ id, className, label, children }: { id: number; cl
 }
 
 export function ConfirmDialog({ id, title, body, confirm, danger, resolve }: { id: number; title: string; body: ReactNode; confirm: string; danger: boolean; resolve: (v: boolean) => void }) {
+  useLanguage();
   const answer = (v: boolean) => {
     useUi.setState((s) => ({ dialogs: s.dialogs.filter((d) => d.id !== id) }));
     resolve(v);
@@ -213,8 +218,7 @@ export function ConfirmDialog({ id, title, body, confirm, danger, resolve }: { i
       <p>{body}</p>
       <div className="row">
         <button className="btn ghost" type="button" onClick={() => answer(false)}>
-          Cancelar
-        </button>
+          {tr("Cancelar")}</button>
         <button className={"btn " + (danger ? "danger" : "primary")} type="button" autoFocus onClick={() => answer(true)}>
           {confirm}
         </button>
@@ -226,6 +230,7 @@ export function ConfirmDialog({ id, title, body, confirm, danger, resolve }: { i
 // ------------------------------------------------------------------ toasts
 
 export function Toasts() {
+  useLanguage();
   const toasts = useUi((s) => s.toasts);
   return (
     <div className="toasts" role="status" aria-live="polite">
@@ -252,6 +257,7 @@ export function Toasts() {
 // ------------------------------------------------------------------ tooltips (delegated via data-tip / data-kbd)
 
 export function Tooltip() {
+  useLanguage();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const tip = ref.current!;

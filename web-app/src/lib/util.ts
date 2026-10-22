@@ -1,3 +1,4 @@
+import { getLanguage, getLocale, tr } from "./i18n";
 import { apiUrl } from "../api";
 
 export const esc = (s: unknown) =>
@@ -22,8 +23,8 @@ export function debounce<A extends unknown[]>(fn: (...a: A) => void, ms: number)
 
 export function formatSize(n: number) {
   if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  if (n < 1024 * 1024) return `${(n / 1024).toLocaleString(getLocale(), { maximumFractionDigits: n < 10240 ? 1 : 0 })} KB`;
+  return `${(n / 1024 / 1024).toLocaleString(getLocale(), { maximumFractionDigits: 1 })} MB`;
 }
 
 export function extOf(name: string) {
@@ -31,14 +32,17 @@ export function extOf(name: string) {
   return m ? m[1] : "txt";
 }
 
-const rtf = new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto" });
+const relativeTime = {
+  en: new Intl.RelativeTimeFormat("en-US", { numeric: "auto" }),
+  "pt-BR": new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto" }),
+};
 export function relTime(ts: number) {
   const s = Date.now() / 1000 - ts;
-  if (s < 45) return "agora";
-  if (s < 3600) return rtf.format(-Math.round(s / 60), "minute");
-  if (s < 86400) return rtf.format(-Math.round(s / 3600), "hour");
-  if (s < 86400 * 30) return rtf.format(-Math.round(s / 86400), "day");
-  return new Date(ts * 1000).toLocaleDateString("pt-BR", { day: "numeric", month: "short", year: "numeric" });
+  if (s < 45) return tr("agora");
+  if (s < 3600) return relativeTime[getLanguage()].format(-Math.round(s / 60), "minute");
+  if (s < 86400) return relativeTime[getLanguage()].format(-Math.round(s / 3600), "hour");
+  if (s < 86400 * 30) return relativeTime[getLanguage()].format(-Math.round(s / 86400), "day");
+  return new Date(ts * 1000).toLocaleDateString(getLocale(), { day: "numeric", month: "short", year: "numeric" });
 }
 
 export function dateGroup(ts: number) {
@@ -46,11 +50,11 @@ export function dateGroup(ts: number) {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const t = d.getTime();
-  if (t >= start) return "Hoje";
-  if (t >= start - 86400000) return "Ontem";
-  if (t >= start - 6 * 86400000) return "Últimos 7 dias";
-  if (t >= start - 29 * 86400000) return "Últimos 30 dias";
-  const label = d.toLocaleDateString("pt-BR", { month: "long", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" });
+  if (t >= start) return tr("Hoje");
+  if (t >= start - 86400000) return tr("Ontem");
+  if (t >= start - 6 * 86400000) return tr("Últimos 7 dias");
+  if (t >= start - 29 * 86400000) return tr("Últimos 30 dias");
+  const label = d.toLocaleDateString(getLocale(), { month: "long", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" });
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
@@ -129,7 +133,7 @@ export async function openExternal(url: string) {
 export async function download(path: string, fallbackName: string) {
   const res = await fetch(apiUrl(path));
   if (!res.ok) {
-    let msg = `Erro ${res.status}`;
+    let msg = tr("Erro {0}", res.status);
     try {
       msg = (await res.json()).error || msg;
     } catch {

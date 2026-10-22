@@ -270,7 +270,7 @@ def now():
 
 DEFAULT_SETTINGS = {
     # geral
-    "language": "auto",           # auto | pt-BR | en — mock: the interface is pt-BR only for now
+    "language": "en",             # en (default) | pt-BR; legacy auto resolves to English
     "send_key": "enter",          # enter | ctrl-enter
     "default_model": None,        # "providerId::modelId"
     "title_model": None,          # None = same as conversation

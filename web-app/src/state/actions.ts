@@ -1,3 +1,4 @@
+import { getLocale, setLanguage, tr } from "../lib/i18n";
 // Controller: navigation, chat actions, streaming and server events
 // (port of web/js/app.js + the streaming half of web/js/thread.js).
 import { api, type Conversation, type IntegrationAction, type Message, type PermissionMode, type RoomConfig, type ServerEvent, type StreamEvent } from "../api";
@@ -55,16 +56,16 @@ export function applyTheme() {
 }
 
 /** Accent colours per theme: [dark, light]. "default" keeps the palette from theme.css. */
-export const ACCENTS: Record<string, { label: string; dark: string; light: string }> = {
-  default: { label: "Padrão", dark: "#a9c1ff", light: "#3656c4" },
-  blue: { label: "Azul", dark: "#7cb8ff", light: "#1f6fd1" },
-  green: { label: "Verde", dark: "#7fdcaa", light: "#1d8a57" },
-  yellow: { label: "Amarelo", dark: "#f3d36b", light: "#a07800" },
-  pink: { label: "Rosa", dark: "#f7a3cf", light: "#c2327f" },
-  orange: { label: "Laranja", dark: "#ffb37a", light: "#c25a12" },
-  purple: { label: "Roxo", dark: "#c3a6ff", light: "#6e43d6" },
-  white: { label: "Branco", dark: "#e9ecf2", light: "#2a2f39" },
-};
+export const ACCENTS = (): Record<string, { label: string; dark: string; light: string }> => ({
+  default: { label: tr("Padrão"), dark: "#a9c1ff", light: "#3656c4" },
+  blue: { label: tr("Azul"), dark: "#7cb8ff", light: "#1f6fd1" },
+  green: { label: tr("Verde"), dark: "#7fdcaa", light: "#1d8a57" },
+  yellow: { label: tr("Amarelo"), dark: "#f3d36b", light: "#a07800" },
+  pink: { label: tr("Rosa"), dark: "#f7a3cf", light: "#c2327f" },
+  orange: { label: tr("Laranja"), dark: "#ffb37a", light: "#c25a12" },
+  purple: { label: tr("Roxo"), dark: "#c3a6ff", light: "#6e43d6" },
+  white: { label: tr("Branco"), dark: "#e9ecf2", light: "#2a2f39" },
+});
 
 export const WIDTHS = { narrow: 640, medium: 760, wide: 940 } as const;
 
@@ -77,7 +78,7 @@ function applyAppearance() {
   const s = S().settings;
   const root = document.documentElement;
   const dark = root.dataset.theme === "dark";
-  const acc = s.accent && s.accent !== "default" ? ACCENTS[s.accent] : null;
+  const acc = s.accent && s.accent !== "default" ? ACCENTS()[s.accent] : null;
   for (const [k, v] of Object.entries({
     "--accent": acc ? (dark ? acc.dark : acc.light) : "",
     "--accent-2": acc ? hexAlpha(dark ? acc.dark : acc.light, dark ? 0.14 : 0.09) : "",
@@ -96,6 +97,7 @@ function applyAppearance() {
 }
 
 export function applySettings() {
+  setLanguage(S().settings.language);
   applyTheme();
   const fs = S().settings.font_size || 15;
   document.documentElement.style.setProperty("--fs-body", fs + "px");
@@ -235,7 +237,7 @@ export async function openConversation(id: string, { push = true, messageId = nu
   try {
     data = await api.conversation(id);
   } catch (e: any) {
-    toast(e.status === 404 ? "Esta conversa não existe mais." : e.message);
+    toast(e.status === 404 ? tr("Esta conversa não existe mais.") : e.message);
     if (!S().current) newChat({ push: false });
     return;
   }
@@ -289,7 +291,7 @@ function requireModel() {
   const model = selectedModel();
   if (!model || !findModel(model)) {
     const any = allModels().length > 0;
-    toast(any ? "O modelo selecionado não está disponível. Escolha outro." : "Conecte um provedor para começar.");
+    toast(any ? tr("O modelo selecionado não está disponível. Escolha outro.") : tr("Conecte um provedor para começar."));
     if (!any) openSettings("providers");
     else view.openModelPicker();
     return null;
@@ -364,7 +366,7 @@ export const planExecMode = (): PermissionMode => (currentRuntime().modes.includ
 /** Plan mode → carry the plan out: switch to the execution mode and ask for it. */
 export async function runPlan() {
   await setPermissionMode(planExecMode());
-  setText("Execute o plano acima.");
+  setText(tr("Execute o plano acima."));
   await send();
 }
 
@@ -382,7 +384,7 @@ export async function steer() {
     return;
   }
   clearComposer(draft);
-  toast("Mensagem entregue: o agente lê depois da ação atual");
+  toast(tr("Mensagem entregue: o agente lê depois da ação atual"));
 }
 
 export async function answerApproval(decision: "allow" | "always" | "deny", reason = "") {
@@ -404,7 +406,7 @@ export async function undoTurn(m: Message) {
   try {
     const { restored } = await api.undo(m.id);
     upsertMessage({ id: m.id, undoable: false });
-    toast(restored === 1 ? "1 arquivo restaurado" : `${restored} arquivos restaurados`);
+    toast(restored === 1 ? tr("1 arquivo restaurado") : tr("{0} arquivos restaurados", restored));
   } catch (e: any) {
     toast(e.message);
   }
@@ -432,7 +434,7 @@ export async function send() {
   }
   const code = !S().current && S().pendingKind === "code";
   if (code && !S().pendingProject) {
-    toast("Escolha a pasta do projeto primeiro.");
+    toast(tr("Escolha a pasta do projeto primeiro."));
     pickProject();
     return;
   }
@@ -575,10 +577,10 @@ export async function removeConversation(c: Conversation) {
   setS((s) => ({ convs: s.convs.filter((x) => x.id !== c.id) }));
   if (wasCurrent) newChat();
   store.del("draft:" + c.id);
-  toast("Conversa excluída", {
+  toast(tr("Conversa excluída"), {
     duration: 6000,
     action: {
-      label: "Desfazer",
+      label: tr("Desfazer"),
       fn: async () => {
         await api.restoreConversation(c.id);
         await refreshConvs();
@@ -616,8 +618,8 @@ export async function setArchived(c: Conversation, archived: boolean) {
   }
   if (archived && S().current?.conv.id === c.id) newChat();
   await refreshConvs();
-  toast(archived ? "Conversa arquivada" : "Conversa restaurada", {
-    action: archived ? { label: "Desfazer", fn: () => setArchived(c, false) } : undefined,
+  toast(archived ? tr("Conversa arquivada") : tr("Conversa restaurada"), {
+    action: archived ? { label: tr("Desfazer"), fn: () => setArchived(c, false) } : undefined,
   });
 }
 
@@ -626,7 +628,7 @@ export async function branchFrom(m: Message) {
     const conv = await api.branch(m.id);
     await refreshConvs();
     await openConversation(conv.id);
-    toast("Nova conversa criada a partir desta resposta");
+    toast(tr("Nova conversa criada a partir desta resposta"));
   } catch (e: any) {
     toast(e.message);
   }
@@ -637,7 +639,7 @@ export async function rate(m: Message, value: 1 | -1) {
   upsertMessage({ id: m.id, feedback: next });
   try {
     await api.feedback(m.id, next);
-    if (next) toast(next === 1 ? "Obrigado pela avaliação" : "Avaliação registrada");
+    if (next) toast(next === 1 ? tr("Obrigado pela avaliação") : tr("Avaliação registrada"));
   } catch (e: any) {
     upsertMessage({ id: m.id, feedback: m.feedback ?? null });
     toast(e.message);
@@ -659,18 +661,18 @@ export function stopSpeaking() {
 }
 
 export function speak(m: Message) {
-  if (!canSpeak()) return toast("A leitura em voz alta não está disponível neste sistema.");
+  if (!canSpeak()) return toast(tr("A leitura em voz alta não está disponível neste sistema."));
   if (S().speakingId === m.id) return stopSpeaking();
   speechSynthesis.cancel();
   const plain = m.content
-    .replace(/```[\s\S]*?```/g, " (bloco de código) ")
+    .replace(/```[\s\S]*?```/g, tr(" (bloco de código) "))
     .replace(/[#*_>`|~]/g, "")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
   const u = new SpeechSynthesisUtterance(plain);
   const { voice_name, voice_rate } = S().settings;
   const voice = speechSynthesis.getVoices().find((v) => v.name === voice_name);
   if (voice) u.voice = voice;
-  else u.lang = "pt-BR";
+  else u.lang = getLocale();
   u.rate = voice_rate || 1;
   u.onend = u.onerror = () => S().speakingId === m.id && setS({ speakingId: null });
   setS({ speakingId: m.id });
@@ -706,7 +708,7 @@ function notifyDone(m: Message | undefined) {
   if (s.notify_sound) chime();
   if (!s.notify_done || !("Notification" in window) || Notification.permission !== "granted") return;
   const title = S().current?.conv.title || "CEU";
-  const n = new Notification(title, { body: (m.content || "Resposta pronta").replace(/\s+/g, " ").slice(0, 140), tag: m.id });
+  const n = new Notification(title, { body: (m.content || tr("Resposta pronta")).replace(/\s+/g, " ").slice(0, 140), tag: m.id });
   n.onclick = () => {
     focus();
     n.close();
@@ -715,17 +717,17 @@ function notifyDone(m: Message | undefined) {
 
 export async function requestNotifications() {
   if (!("Notification" in window)) {
-    toast("Notificações não são suportadas aqui.");
+    toast(tr("Notificações não são suportadas aqui."));
     return false;
   }
   if (Notification.permission === "granted") return true;
   const p = await Notification.requestPermission();
-  if (p !== "granted") toast("Permissão de notificação negada pelo sistema.");
+  if (p !== "granted") toast(tr("Permissão de notificação negada pelo sistema."));
   return p === "granted";
 }
 
 export function exportConversation(c: Conversation) {
-  download(`/api/conversations/${c.id}/export`, (c.title || "conversa") + ".md").catch((e) => toast(e.message));
+  download(`/api/conversations/${c.id}/export`, (c.title || tr("conversa")) + ".md").catch((e) => toast(e.message));
 }
 
 export function setModel(ref: string | null) {
@@ -850,7 +852,7 @@ function notifyApproval() {
   if (!document.hidden) return;
   if (s.notify_sound) chime();
   if (!s.notify_done || !("Notification" in window) || Notification.permission !== "granted") return;
-  const n = new Notification(S().current?.conv.title || "CEU", { body: "O agente está aguardando sua aprovação." });
+  const n = new Notification(S().current?.conv.title || "CEU", { body: tr("O agente está aguardando sua aprovação.") });
   n.onclick = () => {
     focus();
     n.close();

@@ -1,3 +1,4 @@
+import { tr } from "../lib/i18n";
 import { Marked, Renderer, type Tokens } from "marked";
 import DOMPurify from "dompurify";
 import hljs from "highlight.js/lib/common";
@@ -94,11 +95,11 @@ md.use({
   renderer: {
     code({ text, lang }: Tokens.Code) {
       const l = (lang || "").trim().split(/\s+/)[0].toLowerCase();
-      const label = LANG_NAMES[l] || (l && l !== "text" && l !== "plaintext" ? l : "Texto");
+      const label = LANG_NAMES[l] || (l && l !== "text" && l !== "plaintext" ? l : tr("Texto"));
       const body = highlight(text.replace(/\n$/, ""), l);
       return (
         `<div class="code-block"><div class="code-head"><span>${esc(label)}</span>` +
-        `<button type="button" class="icon-btn" data-copy-code>${iconHtml("copy")}<span>Copiar</span></button></div>` +
+        tr("<button type=\"button\" class=\"icon-btn\" data-copy-code>{0}<span>Copiar</span></button></div>", iconHtml("copy")) +
         `<pre><code class="hljs">${body}</code></pre></div>`
       );
     },

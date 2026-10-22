@@ -1,3 +1,4 @@
+import { tr } from "../lib/i18n";
 // Overlay layer state: popover menus, modal dialogs and toasts (port of web/js/ui.js).
 import type { ReactNode } from "react";
 import { create } from "zustand";
@@ -115,7 +116,7 @@ export function closeTopDialog() {
 
 export function confirmDialog(o: { title: string; body: ReactNode; confirm?: string; danger?: boolean }) {
   return new Promise<boolean>((resolve) => {
-    openDialog({ kind: "confirm", title: o.title, body: o.body, confirm: o.confirm || "Confirmar", danger: !!o.danger, resolve });
+    openDialog({ kind: "confirm", title: o.title, body: o.body, confirm: o.confirm || tr("Confirmar"), danger: !!o.danger, resolve });
   });
 }
 

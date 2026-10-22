@@ -185,10 +185,11 @@ def validate(args):
     print("\n[1/4] validação")
     python = sys.executable
     run([python, "-m", "compileall", "-q", "server", "scripts"])
-    for script in ("test_startup.py", "test_calls.py", "test_coordination.py", "test_git_tools.py"):
+    for script in ("test_startup.py", "test_calls.py", "test_coordination.py", "test_git_tools.py", "test_suggestion_language.py"):
         run([python, os.path.join("scripts", script)])
     if not args.skip_recovery:
         run([python, os.path.join("scripts", "verify_recovery.py"), "--real-db"])
+    run(["node", os.path.join("scripts", "test_i18n.cjs")])
     npm = "npm.cmd" if os.name == "nt" else "npm"
     run([npm, "run", "lint"], cwd=APP)
     run([npm, "run", "build"], cwd=APP)

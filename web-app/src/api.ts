@@ -1,3 +1,4 @@
+import { tr, translateLabel } from "./lib/i18n";
 // Client for CEU's Python backend (server/main.py). Same API surface as
 // the original vanilla-JS frontend (web/js/api.js).
 
@@ -552,16 +553,16 @@ export interface ServerEvent {
   deleted?: boolean;
 }
 
-export const EFFORT_LABELS: Record<string, string> = {
-  none: "Nenhum",
-  minimal: "Mínimo",
-  low: "Baixo",
-  medium: "Médio",
-  high: "Alto",
+export const EFFORT_LABELS = (): Record<string, string> => ({
+  none: tr("Nenhum"),
+  minimal: tr("Mínimo"),
+  low: tr("Baixo"),
+  medium: tr("Médio"),
+  high: tr("Alto"),
   xhigh: "Extra",
-  max: "Máx",
+  max: tr("Máx"),
   ultra: "Ultra",
-};
+});
 
 export class ApiError extends Error {
   status: number;
@@ -580,7 +581,7 @@ async function req<T = any>(method: string, path: string, body?: unknown): Promi
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new ApiError("Sem conexão com o servidor do CEU. Ele ainda está em execução?", 0);
+    throw new ApiError(tr("Sem conexão com o servidor do CEU. Ele ainda está em execução?"), 0);
   }
   let data: any = null;
   try {
@@ -588,7 +589,7 @@ async function req<T = any>(method: string, path: string, body?: unknown): Promi
   } catch {
     /* empty body */
   }
-  if (!res.ok) throw new ApiError(data?.error || `Erro ${res.status}`, res.status);
+  if (!res.ok) throw new ApiError(translateLabel(data?.error || tr("Erro {0}", res.status)), res.status);
   return data as T;
 }
 
@@ -688,7 +689,7 @@ export const api = {
     return new Promise((resolve, reject) => {
       const x = new XMLHttpRequest();
       x.open("POST", BASE + "/api/attachments");
-      x.setRequestHeader("X-Filename", encodeURIComponent(file.name || "colado.png"));
+      x.setRequestHeader("X-Filename", encodeURIComponent(file.name || tr("colado.png")));
       x.setRequestHeader("Content-Type", file.type || "application/octet-stream");
       x.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total);
       x.onload = () => {
@@ -699,9 +700,9 @@ export const api = {
           /* ignore */
         }
         if (x.status >= 200 && x.status < 300) resolve(data);
-        else reject(new ApiError(data?.error || `Falha no envio (${x.status})`, x.status));
+        else reject(new ApiError(data?.error || tr("Falha no envio ({0})", x.status), x.status));
       };
-      x.onerror = () => reject(new ApiError("Falha de rede ao enviar o arquivo.", 0));
+      x.onerror = () => reject(new ApiError(tr("Falha de rede ao enviar o arquivo."), 0));
       x.send(file);
     });
   },

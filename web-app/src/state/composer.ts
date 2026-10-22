@@ -1,3 +1,4 @@
+import { tr } from "../lib/i18n";
 // Composer state: text, attachments and per-conversation drafts (port of web/js/composer.js).
 import { create } from "zustand";
 import { api, type Attachment, type CallSpec } from "../api";
@@ -89,16 +90,16 @@ export function addFiles(files: File[]) {
     const ok =
       mime.startsWith("image/") || mime === "application/pdf" || mime.startsWith("text/") || TEXT_EXT.test(file.name) || /json|xml|javascript|yaml|csv/.test(mime);
     if (!ok) {
-      toast(`“${file.name}” não é suportado. Anexe texto, código, imagens ou PDF.`);
+      toast(tr("“{0}” não é suportado. Anexe texto, código, imagens ou PDF.", file.name));
       continue;
     }
     if (file.size > 25 * 1024 * 1024) {
-      toast(`“${file.name}” passa de 25 MB.`);
+      toast(tr("“{0}” passa de 25 MB.", file.name));
       continue;
     }
     const a: PendingAtt = {
       localId: ++seq,
-      name: file.name || "imagem-colada.png",
+      name: file.name || tr("imagem-colada.png"),
       mime: mime || "text/plain",
       size: file.size,
       status: "uploading",

@@ -1,3 +1,4 @@
+import { tr, useLanguage } from "./lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { AgentDialog, AgentPanel } from "./components/Agent";
@@ -57,7 +58,7 @@ function onKeydown(e: KeyboardEvent) {
     const t = lastAssistantText();
     if (t) {
       e.preventDefault();
-      copyText(t).then(() => toast("Última resposta copiada"));
+      copyText(t).then(() => toast(tr("Última resposta copiada")));
     }
     return;
   }
@@ -136,6 +137,7 @@ function useFileDrop() {
 // ------------------------------------------------------------------ layer
 
 function Layer() {
+  useLanguage();
   const dialogs = useUi((s) => s.dialogs);
   return (
     <div id="layer">
@@ -158,13 +160,13 @@ function Layer() {
 }
 
 function DropOverlay() {
+  useLanguage();
   const dropping = useUi((s) => s.dropping);
   return (
     <div className={"drop-overlay" + (dropping ? " is-visible" : "")}>
       <div>
         <Ic name="attach" />
-        Solte para anexar
-      </div>
+        {tr("Solte para anexar")}</div>
     </div>
   );
 }
@@ -186,6 +188,7 @@ async function waitForServer(onRetry: (n: number) => void) {
 }
 
 export default function App() {
+  useLanguage();
   const [phase, setPhase] = useState<"boot" | "slow" | "ready" | "error">("boot");
   const [error, setError] = useState("");
   const dialogOpen = useUi((s) => s.dialogs.length > 0);
@@ -235,11 +238,10 @@ export default function App() {
         <div className="boot-card">
           {phase === "error" ? (
             <>
-              <b>Não foi possível falar com o servidor do CEU.</b>
+              <b>{tr("Não foi possível falar com o servidor do CEU.")}</b>
               <span>{error}</span>
               <button className="btn" onClick={() => location.reload()}>
-                Tentar novamente
-              </button>
+                {tr("Tentar novamente")}</button>
             </>
           ) : (
             <>
@@ -253,7 +255,7 @@ export default function App() {
                   <i />
                 </span>
               </span>
-              {phase === "slow" && <span>Iniciando o servidor…</span>}
+              {phase === "slow" && <span>{tr("Iniciando o servidor…")}</span>}
             </>
           )}
         </div>

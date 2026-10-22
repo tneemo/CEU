@@ -1,6 +1,6 @@
 # Guia para agentes e contribuidores
 
-CEU — Composable Experimentation Unit — é um aplicativo local para Chat, Code, Agent, chamadas entre participantes e Rooms. A interface está em português do Brasil; o README e os guias públicos de contribuição e segurança estão em inglês.
+CEU — Composable Experimentation Unit — é um aplicativo local para Chat, Code, Agent, chamadas entre participantes e Rooms. A interface React/Tauri usa inglês por padrão, com português do Brasil disponível em Settings → General → Language. O Chat legado permanece em português. O README e os guias públicos de contribuição e segurança estão em inglês.
 
 ## Comandos
 
@@ -31,6 +31,8 @@ Verificações do backend:
 .venv\Scripts\python scripts\test_coordination.py
 .venv\Scripts\python scripts\test_git_tools.py
 .venv\Scripts\python scripts\test_startup.py
+.venv\Scripts\python scripts\test_suggestion_language.py
+node scripts/test_i18n.cjs
 .venv\Scripts\python scripts\verify_recovery.py --real-db
 ```
 

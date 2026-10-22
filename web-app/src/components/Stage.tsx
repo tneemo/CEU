@@ -1,3 +1,4 @@
+import { tr, translateLabel, useLanguage } from "../lib/i18n";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Conversation } from "../api";
 import { Ambient, HistoryField } from "../lib/field";
@@ -16,6 +17,7 @@ import { Thread } from "./Thread";
 // ------------------------------------------------------------------ ambient space
 
 export function AmbientCanvas() {
+  useLanguage();
   const ref = useRef<HTMLCanvasElement>(null);
   const amb = useRef<Ambient | null>(null);
   const enabled = useApp((s) => s.settings.ambient !== false);
@@ -39,19 +41,21 @@ export function AmbientCanvas() {
 // ------------------------------------------------------------------ history field (empty state)
 
 function FieldLabel({ hover, count, code }: { hover: Conversation | null; count: number; code: boolean }) {
+  useLanguage();
   if (hover)
     return (
       <>
-        <b>{hover.title || "Nova conversa"}</b>
-        {relTime(hover.updated_at)} · {hover.message_count} mensage{hover.message_count === 1 ? "m" : "ns"}
+        <b>{hover.title || tr("Nova conversa")}</b>
+        {relTime(hover.updated_at)} · {tr(hover.message_count === 1 ? "{0} mensagem" : "{0} mensagens", hover.message_count)}
       </>
     );
   if (!count) return null;
-  const noun = code ? (count === 1 ? "Sessão recente" : `${count} sessões recentes`) : count === 1 ? "Conversa recente" : `${count} conversas recentes`;
-  return <>{noun} — altura indica o tamanho</>;
+  const noun = code ? (count === 1 ? tr("Sessão recente") : tr("{0} sessões recentes", count)) : count === 1 ? tr("Conversa recente") : tr("{0} conversas recentes", count);
+  return <>{noun} {tr("— altura indica o tamanho")}</>;
 }
 
 function Empty({ active }: { active: boolean }) {
+  useLanguage();
   const allConvs = useApp((s) => s.convs);
   const code = useApp((s) => areaOf(s) === "code");
   // the field shows the area's own history
@@ -88,12 +92,13 @@ function Empty({ active }: { active: boolean }) {
 // ------------------------------------------------------------------ topbar
 
 function TitleButton() {
+  useLanguage();
   const conv = useApp((s) => s.current?.conv);
   const convs = useApp((s) => s.convs);
   const [editing, setEditing] = useState(false);
   const [animKey, setAnimKey] = useState(0);
   const lastAnim = useRef(view.titleAnim);
-  const title = conv?.title || "Nova conversa";
+  const title = conv?.title || tr("Nova conversa");
 
   useEffect(() => {
     document.title = conv ? `${title} — CEU` : "CEU";
@@ -138,6 +143,7 @@ function TitleButton() {
 }
 
 function TitleInput({ id, title, onDone }: { id: string; title: string; onDone: () => void }) {
+  useLanguage();
   const ref = useRef<HTMLInputElement>(null);
   const done = useRef(false);
   useEffect(() => {
@@ -157,7 +163,7 @@ function TitleInput({ id, title, onDone }: { id: string; title: string; onDone: 
       className="input"
       defaultValue={title}
       style={{ height: 30, width: "min(420px, 50vw)" }}
-      aria-label="Título da conversa"
+      aria-label={tr("Título da conversa")}
       onKeyDown={(e) => {
         if (e.key === "Enter") finish(true);
         if (e.key === "Escape") {
@@ -172,6 +178,7 @@ function TitleInput({ id, title, onDone }: { id: string; title: string; onDone: 
 
 /** Code session: the folder (and git branch) the agent works in. */
 function ProjectBadge() {
+  useLanguage();
   const conv = useApp((s) => s.current?.conv);
   if (!conv || conv.kind !== "code" || !conv.project_path) return null;
   const path = conv.project_path;
@@ -179,15 +186,15 @@ function ProjectBadge() {
     <button
       type="button"
       className={cx("project-badge", conv.project_exists === false && "is-missing")}
-      data-tip={conv.project_exists === false ? "Pasta não encontrada" : path}
+      data-tip={conv.project_exists === false ? tr("Pasta não encontrada") : path}
       onClick={(e) =>
         openMenu({
           anchor: e.currentTarget,
           placement: "bottom-start",
           items: [
             { header: path },
-            { label: "Abrir no Explorer", icon: "external", disabled: conv.project_exists === false, onSelect: () => openProjectFolder(path) },
-            { label: "Copiar caminho", icon: "copy", onSelect: () => copyText(path).then(() => toast("Caminho copiado")) },
+            { label: tr("Abrir no Explorer"), icon: "external", disabled: conv.project_exists === false, onSelect: () => openProjectFolder(path) },
+            { label: tr("Copiar caminho"), icon: "copy", onSelect: () => copyText(path).then(() => toast(tr("Caminho copiado"))) },
           ],
         })
       }
@@ -206,10 +213,11 @@ function ProjectBadge() {
 
 /** Code session run by another harness than CEU's own loop: say which. */
 function RuntimeBadge() {
+  useLanguage();
   const rt = useApp((s) => (s.current?.conv.kind === "code" ? currentRuntime(s) : null));
   if (!rt || rt.id === "ceu") return null;
   return (
-    <span className="runtime-badge" data-tip={rt.detail}>
+    <span className="runtime-badge" data-tip={translateLabel(rt.detail)}>
       <Icon name={rt.family === "redir" ? "external" : "cube"} />
       {rt.family === "redir" ? `REDIR · ${rt.name}` : rt.name}
     </span>
@@ -218,36 +226,39 @@ function RuntimeBadge() {
 
 /** Task thread: which agent it belongs to, and when it runs. */
 function TaskBadge() {
+  useLanguage();
   const conv = useApp((s) => s.current?.conv);
   if (conv?.kind !== "agent_task" || !conv.agent) return null;
   return (
     <span className="task-badge">
       <span className="a">{conv.agent.name}</span>
-      {conv.task && <span className="s">{conv.task.kind === "research" ? "pesquisa proativa" : describeSchedule(conv.task.schedule).toLowerCase()}</span>}
+      {conv.task && <span className="s">{conv.task.kind === "research" ? tr("pesquisa proativa") : describeSchedule(conv.task.schedule).toLowerCase()}</span>}
     </span>
   );
 }
 
 /** A Code session or agent task started by a delegated call (`@Code`, `@Agent`): back to where it came from. */
 function OriginBadge() {
+  useLanguage();
   const origin = useApp((s) => s.current?.conv.origin || null);
   if (!origin) return null;
   return (
     <button
       type="button"
       className="origin-badge"
-      data-tip="Pedido feito numa conversa do Chat; o resultado volta para lá"
+      data-tip={tr("Pedido feito numa conversa do Chat; o resultado volta para lá")}
       onClick={() => openConversation(origin.conversation_id, { messageId: origin.message_id })}
     >
       <Icon name="chat" />
-      <span>Chamado de</span>
-      <b>{origin.title || "uma conversa"}</b>
+      <span>{tr("Chamado de")}</span>
+      <b>{origin.title || tr("uma conversa")}</b>
     </button>
   );
 }
 
 /** Narrow windows: the agent's activity panel opens over the thread. */
 function PanelToggle() {
+  useLanguage();
   const agent = useApp((s) => !!s.current?.conv.agent_id);
   const pending = useApp((s) => (s.agentDetail ? s.agentDetail.approvals.length + s.agentDetail.tasks.filter((t) => t.status === "blocked").length : 0));
   if (!agent) return null;
@@ -255,8 +266,8 @@ function PanelToggle() {
     <button
       type="button"
       className={cx("icon-btn panel-toggle", pending > 0 && "has-pending")}
-      data-tip="Atividade do agente"
-      aria-label="Atividade do agente"
+      data-tip={tr("Atividade do agente")}
+      aria-label={tr("Atividade do agente")}
       onClick={() => {
         const root = document.documentElement;
         root.dataset.agentPanel = root.dataset.agentPanel === "open" ? "closed" : "open";
@@ -268,23 +279,25 @@ function PanelToggle() {
 }
 
 function TempToggle() {
+  useLanguage();
   const empty = useApp((s) => !s.current);
   const code = useApp((s) => !s.current && s.pendingKind === "code");
   const temp = useApp((s) => (s.current ? !!s.current.conv.temporary : s.pendingTemporary));
   if (code || (!empty && !temp)) return null;
-  const tip = temp ? (empty ? "Desativar conversa temporária" : "Sair da conversa temporária") : "Conversa temporária";
+  const tip = temp ? (empty ? tr("Desativar conversa temporária") : tr("Sair da conversa temporária")) : tr("Conversa temporária");
   return (
     <button type="button" className={cx("temp-toggle", temp && "is-on")} data-tip={tip} aria-label={tip} aria-pressed={temp} onClick={() => setTemporary(!temp)}>
       <Icon name="ghost" />
-      {temp && <span>Temporária</span>}
+      {temp && <span>{tr("Temporária")}</span>}
     </button>
   );
 }
 
 function Topbar() {
+  useLanguage();
   return (
     <header className="topbar">
-      <button className="icon-btn only-collapsed" data-tip="Abrir barra lateral" data-kbd="Ctrl B" aria-label="Abrir barra lateral" onClick={() => setSidebar(true)}>
+      <button className="icon-btn only-collapsed" data-tip={tr("Abrir barra lateral")} data-kbd="Ctrl B" aria-label={tr("Abrir barra lateral")} onClick={() => setSidebar(true)}>
         <Icon name="sidebar" />
       </button>
       <button className="icon-btn only-mobile" aria-label="Menu" onClick={() => setSidebar(true)}>
@@ -299,7 +312,7 @@ function Topbar() {
       <div className="grow" />
       <PanelToggle />
       <TempToggle />
-      <button className="icon-btn only-collapsed-or-mobile" data-tip="Nova conversa" data-kbd="Ctrl ⇧ O" aria-label="Nova conversa" onClick={() => newChat()}>
+      <button className="icon-btn only-collapsed-or-mobile" data-tip={tr("Nova conversa")} data-kbd="Ctrl ⇧ O" aria-label={tr("Nova conversa")} onClick={() => newChat()}>
         <Icon name="new" />
       </button>
     </header>
@@ -309,6 +322,7 @@ function Topbar() {
 // ------------------------------------------------------------------ main plane
 
 export function Main() {
+  useLanguage();
   const empty = useApp((s) => !s.current);
 
   // FLIP: the composer glides from the centred empty state to the bottom
