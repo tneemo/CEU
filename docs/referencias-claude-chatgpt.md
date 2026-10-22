@@ -1,6 +1,6 @@
 # Referências: claude.ai e chatgpt.com
 
-Levantamento feito em 28/09/2026 navegando nos dois produtos logado (conta Pro no Claude, Plus no ChatGPT).
+Referência histórica de interface, registrada em 28/09/2026. Não representa uma promessa de recursos nem uma auditoria atual dos produtos citados.
 Registra estrutura e comportamento; não copia marca, texto de marketing nem dados da conta.
 A coluna **CEU** diz o que foi implementado (real), simulado (mock: só persiste a preferência) ou deixado de fora.
 

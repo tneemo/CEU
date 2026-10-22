@@ -11,6 +11,7 @@ Sai com código 0 se: init/migrações rodam sem erro; a tarefa 'running' vira i
 next_run_at ~ +60s; a tarefa 'waiting' fica intacta; o agendador a retoma após ~1 min.
 """
 import argparse, os, shutil, sqlite3, subprocess, sys, tempfile, textwrap
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -71,13 +72,21 @@ def main():
                         ignore=shutil.ignore_patterns("__pycache__"))
         os.makedirs(os.path.join(tmp, "data"))
         if args.real_db:
-            src = sqlite3.connect(f"file:{os.path.join(ROOT, 'data', 'app.db')}?mode=ro", uri=True)
-            dst = sqlite3.connect(os.path.join(tmp, "data", "app.db"))
-            src.backup(dst); src.close(); dst.close()
+            source = Path(os.environ.get("CEU_DATA_DIR") or os.path.join(ROOT, "data")).expanduser().resolve() / "app.db"
+            if source.is_file():
+                src = sqlite3.connect(source.as_uri() + "?mode=ro", uri=True)
+                dst = sqlite3.connect(os.path.join(tmp, "data", "app.db"))
+                try:
+                    src.backup(dst)
+                finally:
+                    src.close(); dst.close()
+                print("Usando backup isolado do banco existente.", flush=True)
+            else:
+                print("Banco ainda não existe; verificando recuperação em banco novo isolado.", flush=True)
         driver = os.path.join(tmp, "driver.py")
         open(driver, "w", encoding="utf-8").write(DRIVER)
         sys.exit(subprocess.call([sys.executable, driver, tmp, str(args.wait)],
-                                 env={**os.environ, "PYTHONIOENCODING": "utf-8"}))
+                                 env={**os.environ, "CEU_DATA_DIR": os.path.join(tmp, "data"), "PYTHONIOENCODING": "utf-8"}))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

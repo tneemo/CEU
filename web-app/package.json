@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.2.0-rc.4",
   "description": "CEU — Composable Experimentation Unit",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "engines": {
-    "node": ">=20.19.0"
+    "node": "^20.19.0 || >=22.12.0"
   },
   "type": "module",
   "scripts": {
@@ -32,6 +32,6 @@
     "@vitejs/plugin-react": "^6.1.1",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",
-    "vite": "^8.3.0"
+    "vite": "^8.3.3"
   }
 }

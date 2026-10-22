@@ -1,11 +1,9 @@
 // Client for CEU's Python backend (server/main.py). Same API surface as
 // the original vanilla-JS frontend (web/js/api.js).
 
-// In `vite dev` the page and /api share an origin through Vite's proxy
-// (vite.config.ts). In the built app the page is served by Tauri
-// (http://tauri.localhost), so /api must point at the local server directly;
-// server/main.py allows that origin via CORS.
-export const BASE = import.meta.env.DEV ? "" : "http://127.0.0.1:4747";
+// Browsers use the same origin (Python server or Vite proxy), including custom
+// ports. Only the Tauri webview needs a direct connection to the local backend.
+export const BASE = "__TAURI_INTERNALS__" in window ? "http://127.0.0.1:4747" : "";
 
 export const apiUrl = (path: string) => BASE + path;
 

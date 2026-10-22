@@ -1,6 +1,6 @@
 # Guia para agentes e contribuidores
 
-CEU — Composable Experimentation Unit — é um aplicativo local para Chat, Code, Agent, chamadas entre participantes e Rooms. A interface e a documentação principal estão em português do Brasil.
+CEU — Composable Experimentation Unit — é um aplicativo local para Chat, Code, Agent, chamadas entre participantes e Rooms. A interface está em português do Brasil; o README e os guias públicos de contribuição e segurança estão em inglês.
 
 ## Comandos
 
@@ -30,6 +30,7 @@ Verificações do backend:
 .venv\Scripts\python scripts\test_calls.py
 .venv\Scripts\python scripts\test_coordination.py
 .venv\Scripts\python scripts\test_git_tools.py
+.venv\Scripts\python scripts\test_startup.py
 .venv\Scripts\python scripts\verify_recovery.py --real-db
 ```
 
@@ -44,12 +45,14 @@ Verificações do backend:
 - `calls.py`, `delegate.py` e `rooms.py` mantêm autoria, delegação e sequenciamento de participantes.
 - `coordination.py` deixa um agente conduzir um objetivo com outros modelos (executores em sessões do Code), mantém as questões do objetivo e o portão de conclusão (revisão independente do conteúdo atual da pasta). Design em `docs/coordenacao.md`.
 - `web/` é o frontend estático servido pelo backend; `web-app/` é o frontend React e a casca Tauri.
+- O backend serve `web-app/dist/` quando compilado; `--web legacy` seleciona o Chat antigo em `web/`. A distribuição pública inicial é por código-fonte; a casca Tauri não inclui Python/backend.
 
 O fluxo, as aprovações, a conexão e as tools de Git/GitHub estão em `docs/git-github.md`.
 
 ## Cuidados locais
 
 - Não inicie uma segunda instância contra `data/app.db`: a inicialização pode encerrar mensagens que estejam em streaming.
+- O processo principal trava a pasta de dados antes da recuperação. Instâncias independentes exigem `CEU_DATA_DIR` e porta diferentes; testes devem sempre definir uma pasta temporária.
 - `scripts/verify_recovery.py --real-db` trabalha em cópia isolada e não deve ser substituído por testes contra um banco de usuário.
 - Não versione `.env`, `data/`, `.venv/`, `node_modules/`, `dist/`, `target/`, bancos SQLite ou logs.
 - O backend escuta em loopback por padrão. O sandbox WSL2 ajuda contra acidentes, mas não bloqueia a rede nem substitui um sandbox endurecido.

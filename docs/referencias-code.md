@@ -1,9 +1,9 @@
 # Referências: modo Code (Claude Code e Codex)
 
-Levantamento feito em 29/09/2026:
-- claude.ai/code e chatgpt.com/codex, navegados logado;
+Referência histórica de design, registrada em 29/09/2026:
+- interfaces web de claude.ai/code e chatgpt.com/codex;
 - documentação pública do Claude Code Desktop (code.claude.com/docs/en/desktop) e do Codex app/CLI;
-- a aba Code do app Claude desktop, onde este trabalho foi feito.
+- a aba Code do app Claude desktop.
 
 As versões web rodam em repositórios GitHub na nuvem. O comportamento local (pasta no disco, aprovação de comandos no host) vem da documentação e do app desktop. O objetivo é registrar estrutura e comportamento, sem copiar marca nem texto.
 

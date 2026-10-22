@@ -82,6 +82,10 @@ def _home_signature():
 def home():
     """Cached cards for the empty chat; kicks off a refresh when they're stale."""
     cached = db.get_cache("home_suggestions") or {}
+    settings = db.get_settings()
+    if not (settings.get("suggestion_model") or settings.get("default_model")):
+        # First run uses the client's static cards until a model is configured.
+        return cached.get("items") or []
     age = time.time() - cached.get("at", 0)
     if age > HOME_MAX_AGE or (age > HOME_MIN_AGE and cached.get("sig") != _home_signature()):
         _start_home()

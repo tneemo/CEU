@@ -210,10 +210,8 @@ function General() {
       <p className="lead">Comportamento do aplicativo. As alterações são salvas automaticamente.</p>
       <Group>
         <Row title="Idioma" desc="Idioma da interface. Por enquanto o CEU só está disponível em português." badge="em breve">
-          <select className="select" value={s.language} onChange={(e) => save({ language: e.target.value as SettingsT["language"] })}>
-            <option value="auto">Detecção automática</option>
+          <select className="select" value="pt-BR" disabled aria-label="Idioma da interface">
             <option value="pt-BR">Português (Brasil)</option>
-            <option value="en">English</option>
           </select>
         </Row>
         <Row title="Envio" desc="Com Ctrl+Enter, Enter sempre insere uma nova linha.">
@@ -454,7 +452,7 @@ function MemorySection() {
           <Switch on={s.memory_enabled} onChange={(v) => save({ memory_enabled: v })} />
         </Row>
         <Row title="Consultar conversas anteriores" desc="Permite buscar detalhes relevantes no seu histórico ao responder." badge="em breve">
-          <Switch on={s.memory_chat_history} onChange={(v) => save({ memory_chat_history: v })} />
+          <Switch on={false} disabled onChange={() => {}} />
         </Row>
       </Group>
       <Group title={mems ? `Memórias salvas (${mems.length})` : "Memórias salvas"}>
@@ -619,7 +617,7 @@ function Capabilities() {
           desc="Instalar pacotes e acessar a internet de dentro da execução de código. Hoje o sandbox sempre tem rede; esta opção passará a bloqueá-la."
           badge="em breve"
         >
-          <Switch on={s.sandbox_network} disabled={!s.tool_code} onChange={(v) => save({ sandbox_network: v })} />
+          <Switch on={true} disabled onChange={() => {}} />
         </Row>
       </Group>
     </>

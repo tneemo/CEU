@@ -13,11 +13,16 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import (agent_mode, agent_tools, calls, code_runtimes, code_tools, codex_bridge, coordination, db, delegate,
-               generation, github, integrations, providers, rooms, suggestions)
+               generation, github, instance, integrations, providers, rooms, suggestions, version)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, "web")
 MAX_UPLOAD = 25 * 1024 * 1024
+
+
+def web_root(choice="auto"):
+    built = os.path.join(ROOT, "web-app", "dist")
+    return built if choice != "legacy" and os.path.isfile(os.path.join(built, "index.html")) else os.path.join(ROOT, "web")
 
 mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("text/css", ".css")
@@ -49,6 +54,10 @@ def _model_meta(model_ref):
 
 
 # ---------------------------------------------------------------- state
+
+@route("GET", "/api/health")
+def api_health(h, m):
+    return {"app": "CEU", "version": version.VERSION}
 
 @route("GET", "/api/state")
 def api_state(h, m):
@@ -1255,6 +1264,9 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.flush()
 
     def _dispatch(self, method):
+        # A hostile hostname resolving to loopback must not become a local API origin.
+        if not self._local_host():
+            return self.send_json(403, {"error": "Host não permitido."})
         path = urllib.parse.urlsplit(self.path).path
         if path.startswith("/api/"):
             if not self._same_origin():
@@ -1295,6 +1307,13 @@ class Handler(BaseHTTPRequestHandler):
         "https://tauri.localhost",
     }
 
+    def _local_host(self):
+        host = self.headers.get("Host", "")
+        allowed = {"127.0.0.1", "localhost", "[::1]", self.server.server_address[0]}
+        port = self.server.server_address[1]
+        return any(host.lower() == f"{name}:{port}".lower() or
+                   (port == 80 and host.lower() == name.lower()) for name in allowed)
+
     def _same_origin(self):
         origin = self.headers.get("Origin")
         if not origin:
@@ -1305,11 +1324,18 @@ class Handler(BaseHTTPRequestHandler):
         return urllib.parse.urlsplit(origin).netloc == host
 
     def _static(self, path):
-        rel = path.lstrip("/")
+        rel = urllib.parse.unquote(path).lstrip("/")
         if not rel or rel.startswith("c/") or rel == "c":
             rel = "index.html"
-        full = os.path.normpath(os.path.join(WEB, rel))
-        if not full.startswith(WEB) or not os.path.isfile(full):
+        root = os.path.realpath(WEB)
+        full = os.path.realpath(os.path.join(root, rel))
+        try:
+            inside = os.path.commonpath([root, full]) == root
+        except ValueError:
+            inside = False
+        if not inside:
+            return self.send_json(404, {"error": "Arquivo não encontrado."})
+        if not os.path.isfile(full):
             full = os.path.join(WEB, "index.html") if "." not in os.path.basename(rel) else None
         if not full:
             return self.send_json(404, {"error": "Arquivo não encontrado."})
@@ -1343,6 +1369,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         # CORS preflight for the Vite dev server / Tauri webview, which call
         # this same-machine server from a different origin.
+        if not self._local_host():
+            return self.send_json(403, {"error": "Host não permitido."})
         self.send_response(204)
         origin = self._trusted_origin()
         if origin:
@@ -1397,8 +1425,31 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=int(os.environ.get("CEU_PORT", "4747")))
     ap.add_argument("--host", default="127.0.0.1")
+    ap.add_argument("--web", choices=("auto", "legacy"), default="auto",
+                    help="serve o React compilado quando disponível, ou a interface Chat legada")
     args = ap.parse_args()
 
+    global WEB
+    WEB = web_root(args.web)
+    try:
+        with instance.lock(db.DATA_DIR):
+            # Bind before recovery: even an occupied port must not alter stored streams.
+            with Server((args.host, args.port), Handler) as server:
+                _serve(server, args)
+    except (OSError, RuntimeError) as error:
+        ap.exit(1, f"CEU: {error}\n")
+
+
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        if isinstance(sys.exc_info()[1], (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)):
+            return
+        super().handle_error(request, client_address)
+
+
+def _serve(server, args):
     db.init()
     seed_providers()
     # Credentials come only from the app's own settings from here on; ambient SDK env vars
@@ -1424,16 +1475,7 @@ def main():
     integrations.on_connected = _integration_connected
     integrations.warm()
 
-    class Server(ThreadingHTTPServer):
-        def handle_error(self, request, client_address):
-            # Browsers drop idle keep-alive and SSE connections all the time; that's not an error.
-            if isinstance(sys.exc_info()[1], (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)):
-                return
-            super().handle_error(request, client_address)
-
-    server = Server((args.host, args.port), Handler)
-    server.daemon_threads = True
-    print(f"CEU em http://{args.host}:{args.port}", flush=True)
+    print(f"CEU em http://{args.host}:{server.server_address[1]} ({'React' if WEB != os.path.join(ROOT, 'web') else 'Chat legado'})", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -377,7 +377,7 @@ def main():
         shutil.copytree(os.path.join(ROOT, "server"), os.path.join(tmp, "server"), ignore=shutil.ignore_patterns("__pycache__"))
         os.makedirs(os.path.join(tmp, "data"))
         code = subprocess.call([sys.executable, os.path.abspath(__file__), "--driver", tmp],
-                               env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+                               env={**os.environ, "CEU_DATA_DIR": os.path.join(tmp, "data"), "PYTHONIOENCODING": "utf-8"})
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     sys.exit(code)

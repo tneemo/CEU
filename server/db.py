@@ -6,7 +6,8 @@ import threading
 import time
 import uuid
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+DATA_DIR = os.path.abspath(os.path.expanduser(os.environ.get("CEU_DATA_DIR") or
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")))
 DB_PATH = os.path.join(DATA_DIR, "app.db")
 
 _local = threading.local()

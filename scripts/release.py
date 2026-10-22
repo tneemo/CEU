@@ -27,6 +27,7 @@ PKG_LOCK = os.path.join(APP, "package-lock.json")
 VERSION_FILES = [TAURI_CONF, CARGO_TOML, CARGO_LOCK, PKG_JSON, PKG_LOCK]
 
 RELEVANT = (
+    "scripts/",
     "server/",
     "web/",
     "web-app/src/",
@@ -184,6 +185,8 @@ def validate(args):
     print("\n[1/4] validação")
     python = sys.executable
     run([python, "-m", "compileall", "-q", "server", "scripts"])
+    for script in ("test_startup.py", "test_calls.py", "test_coordination.py", "test_git_tools.py"):
+        run([python, os.path.join("scripts", script)])
     if not args.skip_recovery:
         run([python, os.path.join("scripts", "verify_recovery.py"), "--real-db"])
     npm = "npm.cmd" if os.name == "nt" else "npm"
@@ -195,7 +198,7 @@ def build(args):
     print("\n[3/4] build de produção")
     npm = "npm.cmd" if os.name == "nt" else "npm"
     if args.skip_tauri:
-        run([npm, "run", "build"], cwd=APP)
+        print("  Bundle Tauri omitido; frontend já compilado na validação.")
         return
     if os.environ.get("MSYSTEM"):
         raise Fail("rode do PowerShell, não do Git Bash: o link.exe do Git pode quebrar o build Tauri")
@@ -207,9 +210,19 @@ def build(args):
 
 
 def cmd_release(args):
-    if not os.path.isdir(os.path.join(ROOT, ".git")):
-        raise Fail("não é um repositório Git — rode `release.py init` primeiro")
     old = current_version()
+    if args.dry_run:
+        # Validation is useful on a clean checkout and with edited manifests too.
+        # It must not require a new version/tag or silently skip documentation-only work.
+        if args.version:
+            validate_version(args.version)
+        print(f"Validação local do CEU {old}; sem alterar versão, commit ou tag.")
+        validate(args)
+        build(args)
+        print("\n--dry-run: validação concluída; nenhum commit/tag criado.")
+        return
+    if not os.path.exists(os.path.join(ROOT, ".git")):
+        raise Fail("não é um repositório Git — rode `release.py init` primeiro")
     new = validate_version(args.version) if args.version else bump_patch(old)
     tag = f"v{new}"
     last = git("describe", "--tags", "--abbrev=0", "--match", "v*", check=False).stdout.strip() or None
@@ -238,9 +251,6 @@ def cmd_release(args):
     print(f"{len(files)} arquivo(s) relevante(s) mudaram, ex.: {files[:5]}")
 
     validate(args)
-    if args.dry_run:
-        print(f"\n--dry-run: validação ok. Criaria a release {tag} (bump, build, commit e tag).")
-        return
 
     print(f"\n[2/4] versão {old} -> {new}")
     snapshots = {path: open(path, "rb").read() for path in VERSION_FILES}

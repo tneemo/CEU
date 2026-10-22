@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased — first public source release preparation
+
+- English README, real first-run screenshot, installation examples, architecture,
+  security, contribution and known-limitations guides.
+- MIT license for CEU and preserved third-party license texts.
+- Python serves the production React build when present; browser API requests
+  follow the same origin, including custom ports. Legacy Chat stays available.
+- Per-data-directory process lock and port binding before database recovery;
+  startup regression tests cover duplicate instances and occupied ports.
+- Static-file traversal and unexpected Host checks; disabled UI controls for
+  unavailable language, history retrieval and sandbox network blocking.
+- Retryable Windows dependency installation and readiness checks.
+- First-run starter cards no longer launch a background model request before
+  a model has been configured.
+- Clean-checkout recovery tests and a dry-run workflow that runs integration
+  tests without requiring a version bump, existing user database or clean manifests.
+- Compatible Vite/source-map dependency updates; corrected Node engine range.
+- Desktop shell startup no longer depends on the release build machine's path;
+  readiness and startup errors are checked. It still requires a prepared Python
+  backend and is not a standalone installer.
+
 ## [0.2.0-rc.4] — Release Candidate
 
 ### Incluído

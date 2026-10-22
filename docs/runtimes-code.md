@@ -1,7 +1,8 @@
 # Runtimes do modo Code
 
 Este documento registra a arquitetura dos runtimes do modo Code, o fluxo de configuração e login das
-integrações e o estado de cada uma em 03/10/2026.
+integrações. As observações originais de 03/10/2026 são históricas; a preparação pública
+não revalidou contas ou turnos reais de fornecedores. Consulte [limitações](limitations.md).
 
 ## Ideia
 
@@ -61,7 +62,7 @@ unconfigured → setup_required → authenticating → connected
 
 - Nenhum OAuth próprio: cada login é o oficial da ferramenta (app-server do Codex, `claude auth login`,
   login interativo do Antigravity CLI). O CEU nunca lê, copia nem guarda tokens de outra ferramenta.
-- A única credencial que o CEU guarda é a chave de API da Anthropic usada pelo Claude SDK, e ela é a de um
+- Nesta integração, a chave de API da Anthropic usada pelo Claude SDK é a de um
   provedor Anthropic já salvo no banco local do CEU (nunca enviada ao navegador). Ela só vai para o
   processo filho do SDK, pela variável `ANTHROPIC_API_KEY`.
 - A chave de API da OpenAI (método alternativo do Codex) passa pelo CEU uma vez e vai direto ao
@@ -75,11 +76,11 @@ unconfigured → setup_required → authenticating → connected
 
 | Integração | Instalação | Login | Estado |
 |---|---|---|---|
-| **Codex SDK** (`codex_sdk`) | `npm install -g @openai/codex` | App-server: `account/login/start` com conta ChatGPT pelo navegador (padrão), código de dispositivo ou chave de API; `account/read` (com refresh do token em Validar); `account/logout`. | **Funcional, verificado**: login (início e cancelamento dos dois fluxos), validação, turnos reais com aprovações de comando e de edição, negação com motivo, retomada da sessão, interrupção e correções durante a execução (`turn/steer`). |
-| **Claude SDK** (`claude_sdk`) | `pip install claude-agent-sdk` no Python do CEU e, se o pacote não trouxer o executável, o instalador nativo do Claude Code | Chave de API da Anthropic, escolhida entre os provedores Anthropic do CEU (ou adicionada no próprio cartão) e validada na API. Login com conta claude.ai **não** é oferecido: a Anthropic não permite isso em apps de terceiros. | **Parcial**: integração implementada e verificada até a autenticação (SDK sobe o Claude Code, sessão criada, chave inválida recusada na hora e refletida no hub). Falta testar um turno real, que depende de uma chave válida. |
-| **Codex CLI** (`codex_cli`, REDIR) | Mesma do Codex SDK | Mesma conta do Codex SDK | **Funcional, verificado** (`codex exec --json`). |
-| **Claude Code CLI** (`claude_cli`, REDIR) | Instalador nativo oficial (`irm https://claude.ai/install.ps1 \| iex`) | `claude auth login` (assinatura) ou `--console` (API) numa janela de terminal; estado por `claude auth status` (JSON); `claude auth logout`. | **Parcial / depende de ação externa**: driver implementado e conferido com o Claude Code 2.1.281 até a autenticação (init, falha de autenticação interrompida na hora). O Claude Code não está instalado nesta máquina; falta instalar e fazer login para testar um turno. |
-| **Antigravity CLI** (`antigravity_cli`, REDIR) | Instalador nativo oficial (`irm https://antigravity.google/cli/install.ps1 | iex` no Windows; script oficial no macOS/Linux) | Login oficial do próprio `agy` numa janela de terminal, com a sessão guardada no keyring do sistema; Validar faz um turno headless mínimo. O logout continua sendo o comando interativo `/logout`. | **Implementado / depende de ação externa**: driver NDJSON com retomada por `--conversation`, eventos de texto, ferramentas, uso e erros. Requer instalar e fazer login. |
+| **Codex SDK** (`codex_sdk`) | `npm install -g @openai/codex` | App-server: `account/login/start` com conta ChatGPT pelo navegador (padrão), código de dispositivo ou chave de API; `account/read` (com refresh do token em Validar); `account/logout`. | **Experimental**: implementação de login, aprovação, retomada, interrupção e `turn/steer`. Verificações históricas não garantem compatibilidade com a versão instalada; sem teste de conta real neste release. |
+| **Claude SDK** (`claude_sdk`) | `pip install claude-agent-sdk` no Python do CEU e, se o pacote não trouxer o executável, o instalador nativo do Claude Code | Chave de API da Anthropic, escolhida entre os provedores Anthropic do CEU (ou adicionada no próprio cartão) e validada na API. O CEU não oferece login com conta claude.ai neste runtime. | **Experimental / parcial**: integração implementada; turno real não validado neste release. Requer pacote do SDK e chave válida. |
+| **Codex CLI** (`codex_cli`, REDIR) | Mesma do Codex SDK | Mesma conta do Codex SDK | **Experimental** (`codex exec --json`); não revalidado com conta real neste release. |
+| **Claude Code CLI** (`claude_cli`, REDIR) | Instalador nativo oficial (`irm https://claude.ai/install.ps1 \| iex`) | `claude auth login` (assinatura) ou `--console` (API) numa janela de terminal; estado por `claude auth status` (JSON); `claude auth logout`. | **Experimental / depende de ação externa**: driver implementado; exige instalação e login próprios. Turno real não validado neste release. |
+| **Antigravity CLI** (`antigravity_cli`, REDIR) | Instalador nativo oficial (`irm https://antigravity.google/cli/install.ps1 \| iex` no Windows; script oficial no macOS/Linux) | Login oficial do próprio `agy` numa janela de terminal, com a sessão guardada no keyring do sistema; Validar faz um turno headless mínimo. O logout continua sendo o comando interativo `/logout`. | **Experimental / depende de ação externa**: driver NDJSON com retomada por `--conversation`, eventos de texto, ferramentas, uso e erros. Requer instalar e fazer login. |
 
 ## Permissões por runtime
 
